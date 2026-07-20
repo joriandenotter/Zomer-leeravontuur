@@ -102,13 +102,14 @@
     padding:14px 4px; border-radius:16px; background:#f2f7fa; font-family:'Baloo 2';
     font-weight:700; font-size:14px; text-align:center; border:3px solid transparent;
   }
-  .level-btn .grp{ font-size:11px; display:block; opacity:0.65; font-weight:600; margin-top:2px; }
   .level-btn.active{ border-color:var(--ink); background:white; }
+  #level-info{ font-weight:700; margin-top:16px; opacity:0.8; font-size:14px; }
 
   /* ---- Quiz ---- */
+  .quiz-stopline{ display:flex; justify-content:flex-end; margin-bottom:4px; }
   .progress-bar{ height:10px; background:#eaf1f5; border-radius:6px; overflow:hidden; margin-bottom:18px; }
   .progress-fill{ height:100%; border-radius:6px; transition:width .3s ease; }
-  .quiz-topline{ display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; font-weight:800; font-family:'Baloo 2'; }
+  .quiz-topline{ display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; font-weight:800; font-family:'Baloo 2'; font-size:14px; }
   .passage-box{ background:#f7fbfd; border-radius:16px; padding:16px; margin-bottom:16px; line-height:1.6; font-size:15px; }
   .question-text{ font-size:20px; font-weight:800; font-family:'Baloo 2'; margin:6px 0 18px; line-height:1.4; }
   .choices{ display:grid; gap:10px; }
@@ -121,6 +122,10 @@
   .choice-btn.wrong{ background:#fde7e2; border-color:#e0563c; }
   .choice-btn.dim{ opacity:0.5; }
   .feedback{ margin-top:14px; font-weight:800; font-family:'Baloo 2'; min-height:24px; }
+  .explanation-box{
+    margin-top:10px; background:#fff7ec; border-radius:14px; padding:12px 14px;
+    font-size:14px; line-height:1.5; color:#6b4b12; font-weight:600;
+  }
 
   /* ---- Result ---- */
   .stars-big{ font-size:52px; letter-spacing:6px; margin:10px 0; }
@@ -135,9 +140,7 @@
   .cal-header .month-label{ font-family:'Baloo 2'; font-weight:800; font-size:19px; }
   .cal-nav-btn{ background:#f2f7fa; border-radius:12px; padding:8px 12px; font-size:16px; font-weight:800; }
   .cal-summary{ display:flex; gap:10px; margin-bottom:18px; flex-wrap:wrap; }
-  .cal-chip{
-    flex:1; min-width:110px; background:#f2f7fa; border-radius:14px; padding:10px 12px; text-align:center;
-  }
+  .cal-chip{ flex:1; min-width:110px; background:#f2f7fa; border-radius:14px; padding:10px 12px; text-align:center; }
   .cal-chip .num{ font-family:'Baloo 2'; font-weight:800; font-size:20px; }
   .cal-chip .lbl{ font-size:11px; font-weight:700; opacity:0.7; }
   .cal-grid{ display:grid; grid-template-columns:repeat(7,1fr); gap:6px; }
@@ -198,7 +201,7 @@
         <div class="icon" style="background:var(--rekenen);">🔢</div>
         <div class="info">
           <p class="title">Rekenland</p>
-          <p class="sub">Optellen, aftrekken, keren & delen</p>
+          <p class="sub" id="sub-rekenen">Optellen, aftrekken, keren & delen</p>
         </div>
         <div class="stars" id="stars-rekenen">☆☆☆</div>
       </button>
@@ -207,7 +210,7 @@
         <div class="icon" style="background:var(--spelling);">✏️</div>
         <div class="info">
           <p class="title">Spellingstad</p>
-          <p class="sub">Woorden goed schrijven</p>
+          <p class="sub" id="sub-spelling">Woorden goed schrijven</p>
         </div>
         <div class="stars" id="stars-spelling">☆☆☆</div>
       </button>
@@ -216,7 +219,7 @@
         <div class="icon" style="background:var(--lezen);">📖</div>
         <div class="info">
           <p class="title">Leeseiland</p>
-          <p class="sub">Verhalen lezen & vragen beantwoorden</p>
+          <p class="sub" id="sub-lezen">Verhalen lezen & vragen beantwoorden</p>
         </div>
         <div class="stars" id="stars-lezen">☆☆☆</div>
       </button>
@@ -239,13 +242,17 @@
       <h2 id="level-title" style="margin-top:0;"></h2>
       <p style="opacity:0.7; font-weight:600; margin-top:-8px;">Kies je groep</p>
       <div class="level-row" id="level-row"></div>
-      <button class="btn-primary" style="width:100%; margin-top:22px;" onclick="startQuiz()">Begin! →</button>
+      <p id="level-info"></p>
+      <button class="btn-primary" style="width:100%; margin-top:12px;" onclick="startQuiz()">Begin! →</button>
     </div>
   </div>
 
   <!-- SCREEN: quiz -->
   <div id="screen-quiz" class="hidden">
     <div class="card">
+      <div class="quiz-stopline">
+        <button class="btn-ghost" style="font-size:13px;" onclick="confirmStopQuiz()">✕ Stoppen</button>
+      </div>
       <div class="progress-bar"><div class="progress-fill" id="quiz-progress-fill"></div></div>
       <div class="quiz-topline">
         <span id="quiz-subject-label"></span>
@@ -255,6 +262,7 @@
       <div class="question-text" id="quiz-question"></div>
       <div class="choices" id="quiz-choices"></div>
       <div class="feedback" id="quiz-feedback"></div>
+      <div class="explanation-box hidden" id="quiz-explanation"></div>
     </div>
   </div>
 
@@ -299,8 +307,8 @@ const SUBJECT_META = {
 };
 const GROEPEN = [3,4,5,6,7,8];
 
-/* Spelling- en leesinhoud is per twee groepen gebundeld (3&4 / 5&6 / 7&8):
-   rekenen genereert wel voor alle 6 groepen apart, omdat dat volledig automatisch gaat. */
+/* Spelling- en leesinhoud is per twee groepen gebundeld (3&4 / 5&6 / 7&8).
+   Rekenen genereert wel per groep én per niveau (1,2,3) apart, omdat dat volledig automatisch gaat. */
 function contentTierFor(groep){
   if(groep <= 4) return 'a';
   if(groep <= 6) return 'b';
@@ -309,46 +317,46 @@ function contentTierFor(groep){
 
 const SPELLING_BANK = {
   a: [
-    {s:"De ___ vliegt hoog in de lucht.", o:["vogel","vogol","vogul"], c:0},
-    {s:"Ik doe mijn ___ aan voor ik naar buiten ga.", o:["jasje","jassje","jashe"], c:0},
-    {s:"We gaan zwemmen in het ___.", o:["zwembad","swembad","zwemват"], c:0},
-    {s:"De kat drinkt ___.", o:["melk","melc","melck"], c:0},
-    {s:"Mijn broer speelt met de ___.", o:["bal","bhal","balh"], c:0},
-    {s:"In de herfst vallen de ___ van de boom.", o:["blaadjes","bladjes","blaatjes"], c:0},
-    {s:"Wij eten een lekker ___ brood.", o:["bruin","bruen","bruijn"], c:0},
-    {s:"Hij ___ heel hard tijdens de wedstrijd.", o:["rent","rend","reent"], c:0},
-    {s:"De ___ schijnt vandaag fel.", o:["zon","son","zonn"], c:0},
-    {s:"Zij tekent een mooie ___.", o:["tekening","teekening","tekenig"], c:0},
-    {s:"We slapen lekker in ons ___.", o:["bed","bedd","bett"], c:0},
-    {s:"De ___ blaft heel hard.", o:["hond","hondt","hont"], c:0}
+    {s:"De ___ vliegt hoog in de lucht.", o:["vogel","vogol","vogul"], c:0, u:"Je hoort een duidelijke o-klank, die schrijf je met één o: vo-gel."},
+    {s:"Ik doe mijn ___ aan voor ik naar buiten ga.", o:["jasje","jassje","jashe"], c:0, u:"Je schrijft maar één s in jasje; de sj-klank schrijf je met 's' + 'j'."},
+    {s:"We gaan zwemmen in het ___.", o:["zwembad","swembad","zwembadt"], c:0, u:"Het woord begint met 'zw', niet met 's': zwem-bad."},
+    {s:"De kat drinkt ___.", o:["melk","melc","melck"], c:0, u:"De k-klank aan het einde schrijf je met een 'k', niet met 'c'."},
+    {s:"Mijn broer speelt met de ___.", o:["bal","bhal","balh"], c:0, u:"Gewoon 'bal', zonder extra letters."},
+    {s:"In de herfst vallen de ___ van de boom.", o:["blaadjes","bladjes","blaatjes"], c:0, u:"Van 'blad' naar meervoud verdubbel je de a: bla-a-djes."},
+    {s:"Wij eten een lekker ___ brood.", o:["bruin","bruen","bruijn"], c:0, u:"De klank 'ui' schrijf je met u+i: bruin."},
+    {s:"Hij ___ heel hard tijdens de wedstrijd.", o:["rent","rend","reent"], c:0, u:"Bij 'hij rent' schrijf je een 't' aan het einde, ook al hoor je soms een d-klank."},
+    {s:"De ___ schijnt vandaag fel.", o:["zon","son","zonn"], c:0, u:"Het woord begint met 'z', en heeft maar één n."},
+    {s:"Zij tekent een mooie ___.", o:["tekening","teekening","tekenig"], c:0, u:"Van 'tekenen' maak je 'tekening', met één e in de eerste lettergreep."},
+    {s:"We slapen lekker in ons ___.", o:["bed","bedd","bett"], c:0, u:"Kort woord, één d aan het eind: bed."},
+    {s:"De ___ blaft heel hard.", o:["hond","hondt","hont"], c:0, u:"Het woord eindigt op 'd', ook al hoor je een t-klank: hond."}
   ],
   b: [
-    {s:"Hij ___ (rennen) elke dag naar school.", o:["rent","rennt","reent"], c:0},
-    {s:"We hebben een nieuwe ___ gekocht.", o:["bank","bangk","banck"], c:0},
-    {s:"De ___ van het huis is groen geverfd.", o:["deur","duer","deurr"], c:0},
-    {s:"Zij ___ (wandelen) elke ochtend een rondje.", o:["wandelt","wandeld","wandellt"], c:0},
-    {s:"Het is een hele ___ afstand naar school.", o:["lange","langge","lanke"], c:0},
-    {s:"We ___ (zitten) al de hele middag te wachten.", o:["zitten","zittn","ziten"], c:0},
-    {s:"Mijn oma bakt een heerlijke ___.", o:["appeltaart","appeltart","appletaart"], c:0},
-    {s:"De trein ___ (vertrekken) over vijf minuten.", o:["vertrekt","vertrekd","vertreckt"], c:0},
-    {s:"Dat is een ___ moeilijke som.", o:["hele","heele","heel"], c:0},
-    {s:"Hij heeft zijn huiswerk ___ (afmaken).", o:["afgemaakt","afgemaakd","afgemaact"], c:0},
-    {s:"We hopen dat het morgen niet gaat ___.", o:["regenen","reegenen","regennen"], c:0},
-    {s:"De ___ van de klas is heel aardig.", o:["juf","juff","juv"], c:0}
+    {s:"Hij ___ (rennen) elke dag naar school.", o:["rent","rennt","reent"], c:0, u:"Bij de hij-vorm van 'rennen' laat je één n vallen: hij rent."},
+    {s:"We hebben een nieuwe ___ gekocht.", o:["bank","bangk","banck"], c:0, u:"De nk-klank schrijf je gewoon met 'n' + 'k': bank."},
+    {s:"De ___ van het huis is groen geverfd.", o:["deur","duer","deurr"], c:0, u:"De tweeklank is 'eu': deur."},
+    {s:"Zij ___ (wandelen) elke ochtend een rondje.", o:["wandelt","wandeld","wandellt"], c:0, u:"Bij zij + werkwoord op -en schrijf je de t-uitgang: wandelt."},
+    {s:"Het is een hele ___ afstand naar school.", o:["lange","langge","lanke"], c:0, u:"'Lang' + e krijgt maar één g erbij: lange."},
+    {s:"We ___ (zitten) al de hele middag te wachten.", o:["zitten","zittn","ziten"], c:0, u:"Korte klank i, dubbele t door de gesloten lettergreep: zit-ten."},
+    {s:"Mijn oma bakt een heerlijke ___.", o:["appeltaart","appeltart","appletaart"], c:0, u:"Samenstelling van 'appel' + 'taart', met dubbele p en dubbele a in taart."},
+    {s:"De trein ___ (vertrekken) over vijf minuten.", o:["vertrekt","vertrekd","vertreckt"], c:0, u:"Bij de hij-vorm van vertrekken schrijf je een 't': vertrekt."},
+    {s:"Dat is een ___ moeilijke som.", o:["hele","heele","heel"], c:0, u:"'Heel' krijgt hier een 'e' erbij, maar geen dubbele e: hele."},
+    {s:"Hij heeft zijn huiswerk ___ (afmaken).", o:["afgemaakt","afgemaakd","afgemaact"], c:0, u:"Voltooid deelwoord van 'maken' eindigt op -kt: afgemaakt."},
+    {s:"We hopen dat het morgen niet gaat ___.", o:["regenen","reegenen","regennen"], c:0, u:"Het werkwoord 'regenen' heeft één e en één n in de stam: rege-nen."},
+    {s:"De ___ van de klas is heel aardig.", o:["juf","juff","juv"], c:0, u:"Kort en simpel: juf, met één f."}
   ],
   c: [
-    {s:"Hij ___ (worden) steeds beter in voetbal.", o:["wordt","word","werdt"], c:0},
-    {s:"Zij heeft het boek al ___ (lezen).", o:["gelezen","gelesen","gelezenn"], c:0},
-    {s:"Dat is een ___ (interessant) verhaal.", o:["interessant","interesant","interessantt"], c:0},
-    {s:"De kinderen ___ (worden) om de beurt opgehaald.", o:["worden","werden","wordden"], c:0},
-    {s:"Ik vind dit een ___ (fantastisch) idee.", o:["fantastisch","fantasties","fantastich"], c:0},
-    {s:"Hij heeft de fiets ___ (repareren).", o:["gerepareerd","gerepareert","gerepareerdt"], c:0},
-    {s:"We wonen in een huis met een ___ (tuin) achter.", o:["tuin","tuun","tuijn"], c:0},
-    {s:"Zij ___ (fietsen) elke dag naar haar werk.", o:["fietst","fiets","fietsd"], c:0},
-    {s:"Dat is een ___ (bijzonder) mooi schilderij.", o:["bijzonder","bijsonder","bijzondere"], c:0},
-    {s:"De trein-en-bus-___ (combinatie) is erg handig.", o:["combinatie","combinasie","kombinatie"], c:0},
-    {s:"Ik heb mijn appel al ___ (opeten).", o:["opgegeten","opgegetten","opgeten"], c:0},
-    {s:"Het ___ (gebeuren) gisteren voor mijn ogen.", o:["gebeurde","gebeurte","gebeurden"], c:0}
+    {s:"Hij ___ (worden) steeds beter in voetbal.", o:["wordt","word","werdt"], c:0, u:"Bij hij/zij + 'worden' schrijf je de d-uitgang: wordt (dt-regel)."},
+    {s:"Zij heeft het boek al ___ (lezen).", o:["gelezen","gelesen","gelezenn"], c:0, u:"Voltooid deelwoord van 'lezen' is 'gelezen', met een z."},
+    {s:"Dat is een ___ (interessant) verhaal.", o:["interessant","interesant","interessantt"], c:0, u:"Dit leenwoord schrijf je met dubbele s: interes-sant."},
+    {s:"De kinderen ___ (worden) om de beurt opgehaald.", o:["worden","werden","wordden"], c:0, u:"De o blijft: 'worden' (niet 'werden', dat is een ander werkwoord)."},
+    {s:"Ik vind dit een ___ (fantastisch) idee.", o:["fantastisch","fantasties","fantastich"], c:0, u:"Dit woord eindigt op -isch, ook al hoor je 'ies': fantastisch."},
+    {s:"Hij heeft de fiets ___ (repareren).", o:["gerepareerd","gerepareert","gerepareerdt"], c:0, u:"Voltooid deelwoord eindigt op -d omdat de stam niet op t/k/f/s/ch/p eindigt: gerepareerd."},
+    {s:"We wonen in een huis met een ___ (tuin) achter.", o:["tuin","tuun","tuijn"], c:0, u:"De tweeklank 'ui' schrijf je met u+i: tuin."},
+    {s:"Zij ___ (fietsen) elke dag naar haar werk.", o:["fietst","fiets","fietsd"], c:0, u:"Bij de zij-vorm van 'fietsen' krijg je een extra t: fietst."},
+    {s:"Dat is een ___ (bijzonder) mooi schilderij.", o:["bijzonder","bijsonder","bijzondere"], c:0, u:"Dit woord schrijf je met een z, niet een s: bij-zon-der."},
+    {s:"De trein-en-bus-___ (combinatie) is erg handig.", o:["combinatie","combinasie","kombinatie"], c:0, u:"Leenwoorden als 'combinatie' schrijf je met c en ti: combi-na-tie."},
+    {s:"Ik heb mijn appel al ___ (opeten).", o:["opgegeten","opgegetten","opgeten"], c:0, u:"Voltooid deelwoord van 'opeten' is 'opgegeten', met ge- ervoor."},
+    {s:"Het ___ (gebeuren) gisteren voor mijn ogen.", o:["gebeurde","gebeurte","gebeurden"], c:0, u:"Verleden tijd van 'gebeuren' (hij/het) is 'gebeurde', met -de."}
   ]
 };
 
@@ -357,53 +365,53 @@ const READING_BANK = {
     { title:"De verdwaalde puppy",
       text:"Sam liep met zijn hond Max in het park. Ineens rende Max achter een vlinder aan. Sam riep hem, maar Max was al verdwenen tussen de bomen. Sam zocht overal en riep steeds harder. Na een tijdje hoorde hij geblaf bij de vijver. Daar zat Max, blij kwispelend, naast een eend. Sam gaf Max een knuffel en samen liepen ze naar huis.",
       qs:[
-        {q:"Achter wat rende Max aan?", o:["Een vlinder","Een kat","Een bal"], c:0},
-        {q:"Waar vond Sam Max terug?", o:["Bij de vijver","Bij de speeltuin","Bij het huis"], c:0},
-        {q:"Hoe voelde Max zich toen Sam hem vond?", o:["Blij","Boos","Bang"], c:0}
+        {q:"Achter wat rende Max aan?", o:["Een vlinder","Een kat","Een bal"], c:0, u:"In de tekst staat dat Max achter een vlinder aanrende."},
+        {q:"Waar vond Sam Max terug?", o:["Bij de vijver","Bij de speeltuin","Bij het huis"], c:0, u:"Sam hoorde geblaf bij de vijver en vond Max daar terug."},
+        {q:"Hoe voelde Max zich toen Sam hem vond?", o:["Blij","Boos","Bang"], c:0, u:"Max zat blij kwispelend, dus hij voelde zich blij."}
       ]},
     { title:"Een dag op het strand",
       text:"Lisa en haar broertje Tom gingen naar het strand. Ze bouwden een grote zandkasteel met een gracht eromheen. Toen de golven kwamen, stroomde het water in de gracht. Tom lachte hard. Daarna gingen ze zwemmen in de zee. Aan het einde van de dag aten ze een ijsje met chocoladesmaak.",
       qs:[
-        {q:"Wat bouwden Lisa en Tom?", o:["Een zandkasteel","Een boot","Een tent"], c:0},
-        {q:"Wat deden ze na het bouwen?", o:["Zwemmen","Slapen","Fietsen"], c:0},
-        {q:"Welke smaak ijsje aten ze?", o:["Chocolade","Aardbei","Vanille"], c:0}
+        {q:"Wat bouwden Lisa en Tom?", o:["Een zandkasteel","Een boot","Een tent"], c:0, u:"Lisa en Tom bouwden samen een zandkasteel met een gracht."},
+        {q:"Wat deden ze na het bouwen?", o:["Zwemmen","Slapen","Fietsen"], c:0, u:"Na het bouwen gingen ze zwemmen in de zee."},
+        {q:"Welke smaak ijsje aten ze?", o:["Chocolade","Aardbei","Vanille"], c:0, u:"Ze aten een ijsje met chocoladesmaak."}
       ]}
   ],
   b: [
     { title:"Het geheime tuinhuisje",
       text:"Achter in de tuin van opa stond een oud houten huisje, vol met spinnenwebben en stof. Jasmijn en haar neef Bram besloten het schoon te maken tijdens de zomervakantie. Ze vonden een oude kist met verroeste sleutels en een vergeeld fotoalbum. Opa vertelde dat het huisje vroeger van zijn eigen opa was geweest, meer dan honderd jaar geleden. Vanaf die dag gebruikten Jasmijn en Bram het huisje als hun eigen geheime plek.",
       qs:[
-        {q:"Wie maakten het tuinhuisje schoon?", o:["Jasmijn en Bram","Opa en oma","Alleen Jasmijn"], c:0},
-        {q:"Wat vonden ze in de oude kist?", o:["Sleutels en een fotoalbum","Geld en sieraden","Speelgoed"], c:0},
-        {q:"Van wie was het huisje vroeger geweest?", o:["Opa's eigen opa","De buren","Niemand"], c:0}
+        {q:"Wie maakten het tuinhuisje schoon?", o:["Jasmijn en Bram","Opa en oma","Alleen Jasmijn"], c:0, u:"Jasmijn en haar neef Bram maakten het tuinhuisje samen schoon."},
+        {q:"Wat vonden ze in de oude kist?", o:["Sleutels en een fotoalbum","Geld en sieraden","Speelgoed"], c:0, u:"Ze vonden een kist met verroeste sleutels en een fotoalbum."},
+        {q:"Van wie was het huisje vroeger geweest?", o:["Opa's eigen opa","De buren","Niemand"], c:0, u:"Opa vertelde dat het huisje van zijn eigen opa was geweest."}
       ]},
     { title:"De wedstrijd op het schoolplein",
       text:"Tijdens de pauze organiseerde meester Karim een hardloopwedstrijd voor groep 6. Iedereen mocht meedoen, maar niemand mocht vals spelen door af te snijden. Youssef liep als eerste weg, maar halverwege kreeg hij last van steken in zijn zij. Fenna haalde hem in en won de wedstrijd. Youssef was even teleurgesteld, maar feliciteerde Fenna sportief met haar overwinning.",
       qs:[
-        {q:"Wie organiseerde de wedstrijd?", o:["Meester Karim","Juf Fenna","De directeur"], c:0},
-        {q:"Waarom moest Youssef vertragen?", o:["Steken in zijn zij","Hij viel","Hij was moe van tevoren"], c:0},
-        {q:"Hoe reageerde Youssef op zijn verlies?", o:["Sportief","Boos","Verdrietig en jaloers"], c:0}
+        {q:"Wie organiseerde de wedstrijd?", o:["Meester Karim","Juf Fenna","De directeur"], c:0, u:"Meester Karim organiseerde de hardloopwedstrijd."},
+        {q:"Waarom moest Youssef vertragen?", o:["Steken in zijn zij","Hij viel","Hij was moe van tevoren"], c:0, u:"Youssef kreeg steken in zijn zij, waardoor hij moest vertragen."},
+        {q:"Hoe reageerde Youssef op zijn verlies?", o:["Sportief","Boos","Verdrietig en jaloers"], c:0, u:"Youssef feliciteerde Fenna sportief, ook al had hij zelf verloren."}
       ]}
   ],
   c: [
     { title:"Het mysterie van de verdwenen fietsen",
       text:"In de straat van Nora verdwenen de laatste weken maar liefst vier fietsen, steeds 's nachts vanaf dezelfde oprit. De buurt was ongerust en sommigen dachten zelfs aan een georganiseerde bende. Nora, die dol was op speurwerk, besloot een nachtcamera te plaatsen die haar vader niet meer gebruikte. Tot ieders verbazing bleek de dader een wasbeer te zijn die, aangetrokken door de glimmende bel, telkens de fiets omduwde en wegrolde tot in het park. Het bewijs stelde de hele buurt gerust, en Nora werd even de trotse held van de straat.",
       qs:[
-        {q:"Hoeveel fietsen waren er verdwenen?", o:["Vier","Twee","Zes"], c:0},
-        {q:"Waarom plaatste Nora een camera?", o:["Om de dader te ontdekken","Om haar huis te bewaken","Om vogels te filmen"], c:0},
-        {q:"Wie of wat bleek de fietsen te verplaatsen?", o:["Een wasbeer","Een dief","De buurman"], c:0}
+        {q:"Hoeveel fietsen waren er verdwenen?", o:["Vier","Twee","Zes"], c:0, u:"In de tekst staat dat er vier fietsen waren verdwenen."},
+        {q:"Waarom plaatste Nora een camera?", o:["Om de dader te ontdekken","Om haar huis te bewaken","Om vogels te filmen"], c:0, u:"Nora plaatste de camera om te ontdekken wie de fietsen meenam."},
+        {q:"Wie of wat bleek de fietsen te verplaatsen?", o:["Een wasbeer","Een dief","De buurman"], c:0, u:"De dader bleek een wasbeer te zijn, die de fiets telkens wegduwde."}
       ]},
     { title:"De onverwachte stroomstoring",
       text:"Tijdens het zomerkamp viel plotseling de stroom uit over het hele terrein, precies op het moment dat de begeleiders een filmavond hadden gepland. In plaats van teleurgesteld te zijn, besloot begeleider Amina er iets van te maken: ze haalde zaklampen en kaarsen tevoorschijn en organiseerde een spannende verhalenavond rond het kampvuur. De kinderen bleken dit uiteindelijk veel leuker te vinden dan de geplande film, en sindsdien staat de verhalenavond ieder jaar vast op het programma.",
       qs:[
-        {q:"Wat was er gepland voor die avond?", o:["Een filmavond","Een sportdag","Een zwemles"], c:0},
-        {q:"Wat deed Amina in plaats daarvan?", o:["Een verhalenavond organiseren","Iedereen laten slapen","De stroom repareren"], c:0},
-        {q:"Wat gebeurde er met de verhalenavond sindsdien?", o:["Het werd een vast onderdeel","Het werd verboden","Niemand herinnerde het zich"], c:0}
+        {q:"Wat was er gepland voor die avond?", o:["Een filmavond","Een sportdag","Een zwemles"], c:0, u:"Er was een filmavond gepland die avond."},
+        {q:"Wat deed Amina in plaats daarvan?", o:["Een verhalenavond organiseren","Iedereen laten slapen","De stroom repareren"], c:0, u:"Amina organiseerde in plaats daarvan een verhalenavond bij het kampvuur."},
+        {q:"Wat gebeurde er met de verhalenavond sindsdien?", o:["Het werd een vast onderdeel","Het werd verboden","Niemand herinnerde het zich"], c:0, u:"De verhalenavond werd sindsdien elk jaar een vast onderdeel."}
       ]}
   ]
 };
 
-/* ============ MATH GENERATION (apart per groep 3 t/m 8) ============ */
+/* ============ MATH GENERATION (per groep 3-8 én per niveau 1-3 binnen die groep) ============ */
 function randInt(min,max){ return Math.floor(Math.random()*(max-min+1))+min; }
 function shuffle(arr){ return arr.map(v=>[Math.random(),v]).sort((a,b)=>a[0]-b[0]).map(v=>v[1]); }
 
@@ -416,97 +424,142 @@ function makeChoices(answer, spread){
   return shuffle([...set]);
 }
 
-function genMathQuestion(groep){
+function explainPlus(a,b,answer){ return `${a} + ${b} = ${answer}. Je telt de twee getallen bij elkaar op.`; }
+function explainMinus(a,b,answer){ return `${a} - ${b} = ${answer}. Je haalt ${b} af van ${a}.`; }
+function explainKeer(a,b,answer){ return `${a} × ${b} = ${answer}. Dat is ${a} keer het getal ${b} bij elkaar optellen.`; }
+function explainDeel(a,b,answer){ return `${a} : ${b} = ${answer}, want ${answer} × ${b} = ${a}.`; }
+function explainProcent(pct,base,answer){ return `${pct}% van ${base} = ${answer}. Je rekent: ${pct}/100 × ${base} = ${answer}.`; }
+function explainVolgorde(a,b,c,answer){ return `Eerst ${b} × ${c} = ${b*c} uitrekenen, dan pas optellen: ${a} + ${b*c} = ${answer}. Vermenigvuldigen gaat vóór optellen!`; }
+
+function genMathQuestion(groep, subLevel){
   let a,b,op,answer,text;
+
   if(groep === 3){
-    op = Math.random() < 0.7 ? '+' : '-';
-    if(op === '+'){ a = randInt(1,20); b = randInt(1,20); answer = a+b; }
-    else { a = randInt(1,20); b = randInt(0,a); answer = a-b; }
-    text = `${a} ${op} ${b} = ?`;
-    return { text, answer, choices: makeChoices(answer, 4) };
-  }
-  if(groep === 4){
-    const r = Math.random();
-    if(r < 0.6){
-      op = Math.random() < 0.5 ? '+' : '-';
-      if(op === '+'){ a = randInt(10,100); b = randInt(10,100); answer = a+b; }
-      else { a = randInt(20,100); b = randInt(1,a); answer = a-b; }
-      text = `${a} ${op} ${b} = ?`;
-      return { text, answer, choices: makeChoices(answer, 8) };
-    } else {
-      a = [2,5,10][randInt(0,2)]; b = randInt(1,10); answer = a*b;
-      text = `${a} × ${b} = ?`;
-      return { text, answer, choices: makeChoices(answer, 5) };
+    if(subLevel === 1){
+      a = randInt(1,10); b = randInt(1,10);
+      answer = a+b;
+      return { text:`${a} + ${b} = ?`, answer, choices: makeChoices(answer,3), explanation: explainPlus(a,b,answer) };
     }
-  }
-  if(groep === 5){
-    const r = Math.random();
-    if(r < 0.4){
+    if(subLevel === 2){
       op = Math.random()<0.5 ? '+' : '-';
-      if(op==='+'){ a=randInt(10,500); b=randInt(10,500); answer=a+b; }
-      else { a=randInt(50,999); b=randInt(1,a); answer=a-b; }
-      text = `${a} ${op} ${b} = ?`;
-      return { text, answer, choices: makeChoices(answer, 20) };
-    } else {
-      a = randInt(2,10); b = randInt(2,10); answer = a*b;
-      text = `${a} × ${b} = ?`;
-      return { text, answer, choices: makeChoices(answer, 6) };
+      if(op==='+'){ a=randInt(1,15); b=randInt(1,15); answer=a+b; }
+      else { a=randInt(5,20); b=randInt(0,a); answer=a-b; }
+      return { text:`${a} ${op} ${b} = ?`, answer, choices: makeChoices(answer,4), explanation: op==='+'?explainPlus(a,b,answer):explainMinus(a,b,answer) };
     }
+    op = Math.random()<0.5 ? '+' : '-';
+    if(op==='+'){ a=randInt(5,20); b=randInt(5,20); answer=a+b; }
+    else { a=randInt(10,20); b=randInt(0,a); answer=a-b; }
+    return { text:`${a} ${op} ${b} = ?`, answer, choices: makeChoices(answer,5), explanation: op==='+'?explainPlus(a,b,answer):explainMinus(a,b,answer) };
   }
-  if(groep === 6){
+
+  if(groep === 4){
+    if(subLevel === 1){
+      op = Math.random()<0.5 ? '+' : '-';
+      if(op==='+'){ a=randInt(10,50); b=randInt(10,50); answer=a+b; }
+      else { a=randInt(20,50); b=randInt(1,a); answer=a-b; }
+      return { text:`${a} ${op} ${b} = ?`, answer, choices: makeChoices(answer,6), explanation: op==='+'?explainPlus(a,b,answer):explainMinus(a,b,answer) };
+    }
+    if(subLevel === 2){
+      if(Math.random()<0.5){
+        op = Math.random()<0.5 ? '+' : '-';
+        if(op==='+'){ a=randInt(10,100); b=randInt(10,100); answer=a+b; }
+        else { a=randInt(20,100); b=randInt(1,a); answer=a-b; }
+        return { text:`${a} ${op} ${b} = ?`, answer, choices: makeChoices(answer,8), explanation: op==='+'?explainPlus(a,b,answer):explainMinus(a,b,answer) };
+      }
+      a = [2,5,10][randInt(0,2)]; b = randInt(1,10); answer = a*b;
+      return { text:`${a} × ${b} = ?`, answer, choices: makeChoices(answer,4), explanation: explainKeer(a,b,answer) };
+    }
+    if(Math.random()<0.4){
+      op = Math.random()<0.5 ? '+' : '-';
+      if(op==='+'){ a=randInt(10,100); b=randInt(10,100); answer=a+b; }
+      else { a=randInt(20,100); b=randInt(1,a); answer=a-b; }
+      return { text:`${a} ${op} ${b} = ?`, answer, choices: makeChoices(answer,10), explanation: op==='+'?explainPlus(a,b,answer):explainMinus(a,b,answer) };
+    }
+    a = randInt(2,10); b = randInt(1,10); answer = a*b;
+    return { text:`${a} × ${b} = ?`, answer, choices: makeChoices(answer,5), explanation: explainKeer(a,b,answer) };
+  }
+
+  if(groep === 5){
+    if(subLevel === 1){
+      a = randInt(2,10); b = randInt(2,10); answer = a*b;
+      return { text:`${a} × ${b} = ?`, answer, choices: makeChoices(answer,5), explanation: explainKeer(a,b,answer) };
+    }
+    if(subLevel === 2){
+      if(Math.random()<0.5){
+        op = Math.random()<0.5 ? '+' : '-';
+        if(op==='+'){ a=randInt(50,500); b=randInt(50,500); answer=a+b; }
+        else { a=randInt(100,999); b=randInt(1,a); answer=a-b; }
+        return { text:`${a} ${op} ${b} = ?`, answer, choices: makeChoices(answer,15), explanation: op==='+'?explainPlus(a,b,answer):explainMinus(a,b,answer) };
+      }
+      b = randInt(2,10); answer = randInt(2,10); a = b*answer;
+      return { text:`${a} : ${b} = ?`, answer, choices: makeChoices(answer,3), explanation: explainDeel(a,b,answer) };
+    }
     const r = Math.random();
-    if(r < 0.35){
-      b = randInt(2,10); answer = randInt(2,12); a = b*answer;
-      text = `${a} : ${b} = ?`;
-      return { text, answer, choices: makeChoices(answer, 3) };
-    } else if(r < 0.65){
-      a = randInt(20,900); b = randInt(20,900); answer = a+b;
-      text = `${a} + ${b} = ?`;
-      return { text, answer, choices: makeChoices(answer, 25) };
-    } else {
+    if(r < 0.34){
+      op = Math.random()<0.5 ? '+' : '-';
+      if(op==='+'){ a=randInt(100,999); b=randInt(100,999); answer=a+b; }
+      else { a=randInt(200,999); b=randInt(1,a); answer=a-b; }
+      return { text:`${a} ${op} ${b} = ?`, answer, choices: makeChoices(answer,25), explanation: op==='+'?explainPlus(a,b,answer):explainMinus(a,b,answer) };
+    } else if(r < 0.67){
+      a = randInt(2,12); b = randInt(2,12); answer = a*b;
+      return { text:`${a} × ${b} = ?`, answer, choices: makeChoices(answer,7), explanation: explainKeer(a,b,answer) };
+    }
+    b = randInt(2,12); answer = randInt(2,12); a = b*answer;
+    return { text:`${a} : ${b} = ?`, answer, choices: makeChoices(answer,4), explanation: explainDeel(a,b,answer) };
+  }
+
+  if(groep === 6){
+    if(subLevel === 1){
+      a = randInt(11,50); b = randInt(2,9); answer = a*b;
+      return { text:`${a} × ${b} = ?`, answer, choices: makeChoices(answer,10), explanation: explainKeer(a,b,answer) };
+    }
+    if(subLevel === 2){
       const pct = [10,25,50][randInt(0,2)];
       const base = [20,40,60,80,100,200][randInt(0,5)];
       answer = Math.round(base*pct/100);
-      text = `${pct}% van ${base} = ?`;
-      return { text, answer, choices: makeChoices(answer, Math.max(2,Math.round(answer*0.3))) };
+      return { text:`${pct}% van ${base} = ?`, answer, choices: makeChoices(answer, Math.max(2,Math.round(answer*0.3))), explanation: explainProcent(pct,base,answer) };
     }
+    if(Math.random()<0.5){
+      a = randInt(11,20); b = randInt(2,9); answer = a*b;
+      return { text:`${a} × ${b} = ?`, answer, choices: makeChoices(answer,12), explanation: explainKeer(a,b,answer) };
+    }
+    a = randInt(100,900); b = randInt(100,900); answer = a+b;
+    return { text:`${a} + ${b} = ?`, answer, choices: makeChoices(answer,30), explanation: explainPlus(a,b,answer) };
   }
+
   if(groep === 7){
-    const r = Math.random();
-    if(r < 0.3){
-      a = randInt(11,50); b = randInt(11,50); answer = a*b;
-      text = `${a} × ${b} = ?`;
-      return { text, answer, choices: makeChoices(answer, 25) };
-    } else if(r < 0.6){
-      b = randInt(3,12); answer = randInt(3,15); a = b*answer;
-      text = `${a} : ${b} = ?`;
-      return { text, answer, choices: makeChoices(answer, 4) };
-    } else {
+    if(subLevel === 1){
+      a = randInt(11,50); b = randInt(2,9); answer = a*b;
+      return { text:`${a} × ${b} = ?`, answer, choices: makeChoices(answer,15), explanation: explainKeer(a,b,answer) };
+    }
+    if(subLevel === 2){
+      a = randInt(11,30); b = randInt(11,30); answer = a*b;
+      return { text:`${a} × ${b} = ?`, answer, choices: makeChoices(answer,20), explanation: explainKeer(a,b,answer) };
+    }
+    if(Math.random()<0.5){
       const pct = [10,20,25,50,75][randInt(0,4)];
       const base = [40,60,80,100,120,200,240][randInt(0,6)];
       answer = Math.round(base*pct/100);
-      text = `${pct}% van ${base} = ?`;
-      return { text, answer, choices: makeChoices(answer, Math.max(3,Math.round(answer*0.2))) };
+      return { text:`${pct}% van ${base} = ?`, answer, choices: makeChoices(answer, Math.max(3,Math.round(answer*0.2))), explanation: explainProcent(pct,base,answer) };
     }
+    b = randInt(3,12); answer = randInt(3,15); a = b*answer;
+    return { text:`${a} : ${b} = ?`, answer, choices: makeChoices(answer,4), explanation: explainDeel(a,b,answer) };
   }
+
   // groep 8
-  const r = Math.random();
-  if(r < 0.3){
-    a = randInt(20,99); b = randInt(20,99); answer = a*b;
-    text = `${a} × ${b} = ?`;
-    return { text, answer, choices: makeChoices(answer, 40) };
-  } else if(r < 0.55){
+  if(subLevel === 1){
+    a = randInt(11,50); b = randInt(11,50); answer = a*b;
+    return { text:`${a} × ${b} = ?`, answer, choices: makeChoices(answer,25), explanation: explainKeer(a,b,answer) };
+  }
+  if(subLevel === 2){
     const pct = [15,20,25,40,60,75][randInt(0,5)];
     const base = [80,120,160,200,240,300,400][randInt(0,6)];
     answer = Math.round(base*pct/100);
-    text = `${pct}% van ${base} = ?`;
-    return { text, answer, choices: makeChoices(answer, Math.max(3,Math.round(answer*0.2))) };
-  } else {
-    a = randInt(20,200); b = randInt(20,200); let c = randInt(2,10);
-    answer = a + b*c;
-    text = `${a} + ${b} × ${c} = ?`;
-    return { text, answer, choices: makeChoices(answer, 15) };
+    return { text:`${pct}% van ${base} = ?`, answer, choices: makeChoices(answer, Math.max(3,Math.round(answer*0.2))), explanation: explainProcent(pct,base,answer) };
   }
+  a = randInt(20,200); b = randInt(20,200); let c = randInt(2,10);
+  answer = a + b*c;
+  return { text:`${a} + ${b} × ${c} = ?`, answer, choices: makeChoices(answer,15), explanation: explainVolgorde(a,b,c,answer) };
 }
 
 /* ============ STATE / STORAGE ============ */
@@ -527,7 +580,6 @@ function todayStr(d){
 }
 
 function migrateNiveauToGroep(n){
-  // oude versie gebruikte niveau 1/2/3; nieuwe versie gebruikt groep 3 t/m 8
   if(n === 1) return 3;
   if(n === 2) return 5;
   if(n === 3) return 7;
@@ -537,30 +589,38 @@ function migrateNiveauToGroep(n){
 
 async function loadKids(){
   try{
-    const res = await window.storage.get('kinderen', false);
-    kids = res ? JSON.parse(res.value) : [];
+    const raw = localStorage.getItem('zomer-leeravontuur:kinderen');
+    kids = raw ? JSON.parse(raw) : [];
   }catch(e){ kids = []; }
   let changed = false;
   kids.forEach(k=>{
     if(typeof k.totalPoints !== 'number'){ k.totalPoints = 0; changed = true; }
     if(!k.activity){ k.activity = {}; changed = true; }
+    if(!k.progress){ k.progress = emptyProgress(); changed = true; }
     ['rekenen','spelling','lezen'].forEach(subj=>{
-      if(!k.progress[subj]){ k.progress[subj] = { niveau:3, stars:0 }; changed = true; }
-      const migrated = migrateNiveauToGroep(k.progress[subj].niveau);
-      if(migrated !== k.progress[subj].niveau){ k.progress[subj].niveau = migrated; changed = true; }
+      if(!k.progress[subj]){ k.progress[subj] = { groep:null, subLevel:1, stars:0 }; changed = true; return; }
+      const p = k.progress[subj];
+      if(p.niveau !== undefined){
+        p.groep = migrateNiveauToGroep(p.niveau);
+        delete p.niveau;
+        changed = true;
+      }
+      if(p.groep === undefined){ p.groep = null; changed = true; }
+      if(p.subLevel === undefined){ p.subLevel = 1; changed = true; }
+      if(p.stars === undefined){ p.stars = 0; changed = true; }
     });
   });
   if(changed) await saveKids();
 }
 async function saveKids(){
-  try{ await window.storage.set('kinderen', JSON.stringify(kids), false); }
+  try{ localStorage.setItem('zomer-leeravontuur:kinderen', JSON.stringify(kids)); }
   catch(e){ console.error('Opslaan mislukt', e); }
 }
 function emptyProgress(){
   return {
-    rekenen:  { niveau:3, stars:0 },
-    spelling: { niveau:3, stars:0 },
-    lezen:    { niveau:3, stars:0 }
+    rekenen:  { groep:null, subLevel:1, stars:0 },
+    spelling: { groep:null, subLevel:1, stars:0 },
+    lezen:    { groep:null, subLevel:1, stars:0 }
   };
 }
 
@@ -637,6 +697,18 @@ function selectKid(idx){
 
 /* ============ MAP ============ */
 function starString(n){ return '★'.repeat(n) + '☆'.repeat(3-n); }
+function subjectSubText(subject){
+  const prog = kids[currentKid].progress[subject];
+  if(prog.groep){
+    return `Groep ${prog.groep} · niveau ${prog.subLevel} van de 3`;
+  }
+  const defaults = {
+    rekenen:'Optellen, aftrekken, keren & delen',
+    spelling:'Woorden goed schrijven',
+    lezen:'Verhalen lezen & vragen beantwoorden'
+  };
+  return defaults[subject];
+}
 function renderMap(){
   const k = kids[currentKid];
   document.getElementById('map-avatar').textContent = k.avatar;
@@ -645,41 +717,50 @@ function renderMap(){
   document.getElementById('stars-rekenen').textContent = starString(k.progress.rekenen.stars);
   document.getElementById('stars-spelling').textContent = starString(k.progress.spelling.stars);
   document.getElementById('stars-lezen').textContent = starString(k.progress.lezen.stars);
+  document.getElementById('sub-rekenen').textContent = subjectSubText('rekenen');
+  document.getElementById('sub-spelling').textContent = subjectSubText('spelling');
+  document.getElementById('sub-lezen').textContent = subjectSubText('lezen');
 }
 
 /* ============ LEVEL PICKER ============ */
 function openLevelPicker(subject){
   currentSubject = subject;
   const k = kids[currentKid];
-  currentLevel = k.progress[subject].niveau || 3;
+  const prog = k.progress[subject];
+  currentLevel = prog.groep || 3;
   document.getElementById('level-title').textContent = SUBJECT_META[subject].label;
   const row = document.getElementById('level-row');
   row.innerHTML = '';
   GROEPEN.forEach(g=>{
     const b = document.createElement('button');
-    b.className = 'level-btn' + (g === currentLevel ? ' active' : '');
+    b.className = 'level-btn';
     b.dataset.niv = g;
     b.innerHTML = `Groep ${g}`;
     b.onclick = ()=> pickLevel(g);
     row.appendChild(b);
   });
+  pickLevel(currentLevel);
   showScreen('screen-level');
 }
-function pickLevel(n){
-  currentLevel = n;
+function pickLevel(g){
+  currentLevel = g;
   document.querySelectorAll('.level-btn').forEach(b=>{
-    b.classList.toggle('active', Number(b.dataset.niv) === n);
+    b.classList.toggle('active', Number(b.dataset.niv) === g);
   });
+  const k = kids[currentKid];
+  const prog = k.progress[currentSubject];
+  const subLevel = (prog.groep === g) ? prog.subLevel : 1;
+  document.getElementById('level-info').textContent = `Je speelt op niveau ${subLevel} van de 3 in groep ${g}. Bij 90% goed ga je automatisch naar het volgende niveau.`;
 }
 
 /* ============ QUIZ BUILD ============ */
-function buildQuizItems(subject, groep){
+function buildQuizItems(subject, groep, subLevel){
   const tier = contentTierFor(groep);
   if(subject === 'rekenen'){
     const items = [];
     for(let i=0;i<8;i++){
-      const q = genMathQuestion(groep);
-      items.push({ type:'math', question:q.text, choices:q.choices.map(String), correctText:String(q.answer) });
+      const q = genMathQuestion(groep, subLevel);
+      items.push({ type:'math', question:q.text, choices:q.choices.map(String), correctText:String(q.answer), explanation:q.explanation });
     }
     return items;
   }
@@ -688,7 +769,7 @@ function buildQuizItems(subject, groep){
     return bank.map(item=>{
       const options = item.o.map((text,i)=>({text, isCorrect:i===item.c}));
       const shuffled = shuffle(options);
-      return { type:'spelling', question: item.s, choices: shuffled.map(o=>o.text), correctText: item.o[item.c] };
+      return { type:'spelling', question:item.s, choices:shuffled.map(o=>o.text), correctText:item.o[item.c], explanation:item.u };
     });
   }
   if(subject === 'lezen'){
@@ -699,19 +780,32 @@ function buildQuizItems(subject, groep){
       const shuffled = shuffle(options);
       return {
         type:'lezen', passageTitle: passage.title, passageText: passage.text,
-        question: item.q, choices: shuffled.map(o=>o.text), correctText: item.o[item.c]
+        question: item.q, choices: shuffled.map(o=>o.text), correctText: item.o[item.c], explanation:item.u
       };
     });
   }
 }
 
-function startQuiz(){
-  quizItems = buildQuizItems(currentSubject, currentLevel);
+async function startQuiz(){
+  const k = kids[currentKid];
+  const prog = k.progress[currentSubject];
+  if(prog.groep !== currentLevel){
+    prog.groep = currentLevel;
+    prog.subLevel = 1;
+    await saveKids();
+  }
+  quizItems = buildQuizItems(currentSubject, prog.groep, prog.subLevel);
   quizIndex = 0;
   quizCorrectCount = 0;
-  document.getElementById('quiz-subject-label').textContent = SUBJECT_META[currentSubject].label + ' · groep ' + currentLevel;
+  document.getElementById('quiz-subject-label').textContent = `${SUBJECT_META[currentSubject].label} · groep ${prog.groep} · niveau ${prog.subLevel}/3`;
   showScreen('screen-quiz');
   renderQuizQuestion();
+}
+
+function confirmStopQuiz(){
+  if(confirm('Wil je nu stoppen? Deze ronde telt dan niet mee voor punten of niveau.')){
+    goMap();
+  }
 }
 
 function renderQuizQuestion(){
@@ -722,6 +816,9 @@ function renderQuizQuestion(){
   document.getElementById('quiz-progress-fill').style.background = SUBJECT_META[currentSubject].color;
   document.getElementById('quiz-counter').textContent = `${quizIndex+1} / ${total}`;
   document.getElementById('quiz-feedback').textContent = '';
+  const explanationBox = document.getElementById('quiz-explanation');
+  explanationBox.classList.add('hidden');
+  explanationBox.textContent = '';
 
   const passageBox = document.getElementById('passage-box');
   if(item.type === 'lezen'){
@@ -756,19 +853,26 @@ function selectAnswer(choiceText, btnEl){
     else b.classList.add('dim');
   });
   const feedback = document.getElementById('quiz-feedback');
+  const explanationBox = document.getElementById('quiz-explanation');
+  let waitTime = 1300;
   if(isCorrect){
     quizCorrectCount++;
     feedback.textContent = '✅ Goed gedaan!';
     feedback.style.color = 'var(--success)';
   } else {
-    feedback.textContent = `❌ Bijna! Het juiste antwoord is: ${item.correctText}`;
+    feedback.textContent = `❌ Het juiste antwoord is: ${item.correctText}`;
     feedback.style.color = '#e0563c';
+    if(item.explanation){
+      explanationBox.textContent = '💡 ' + item.explanation;
+      explanationBox.classList.remove('hidden');
+    }
+    waitTime = 3400;
   }
   setTimeout(()=>{
     quizIndex++;
     if(quizIndex < quizItems.length) renderQuizQuestion();
     else finishQuiz();
-  }, 1300);
+  }, waitTime);
 }
 
 async function finishQuiz(){
@@ -783,8 +887,13 @@ async function finishQuiz(){
 
   const k = kids[currentKid];
   const prog = k.progress[currentSubject];
-  prog.niveau = currentLevel;
   if(starsEarned > prog.stars) prog.stars = starsEarned;
+
+  let leveledUp = false;
+  if(pct >= 0.9 && prog.subLevel < 3){
+    prog.subLevel++;
+    leveledUp = true;
+  }
 
   k.totalPoints += pointsEarned;
   const dateKey = todayStr();
@@ -794,7 +903,8 @@ async function finishQuiz(){
 
   document.getElementById('result-stars').textContent = starsEarned > 0 ? '⭐'.repeat(starsEarned) + '☆'.repeat(3-starsEarned) : '💪';
   let msg;
-  if(pct >= 0.9){ msg = 'Fantastisch gedaan!'; }
+  if(leveledUp){ msg = `🎉 Supergoed! Je gaat naar niveau ${prog.subLevel} in groep ${prog.groep}!`; }
+  else if(pct >= 0.9){ msg = 'Fantastisch gedaan!'; }
   else if(pct >= 0.7){ msg = 'Goed bezig!'; }
   else if(pct >= 0.4){ msg = 'Mooie poging!'; }
   else { msg = 'Blijf oefenen, je wordt steeds beter!'; }
@@ -844,8 +954,8 @@ function renderCalendar(){
 
   const firstOfMonth = new Date(calYear, calMonth, 1);
   const daysInMonth = new Date(calYear, calMonth+1, 0).getDate();
-  let startWeekday = firstOfMonth.getDay(); // 0=zo
-  startWeekday = (startWeekday === 0) ? 6 : startWeekday - 1; // maandag-start
+  let startWeekday = firstOfMonth.getDay();
+  startWeekday = (startWeekday === 0) ? 6 : startWeekday - 1;
 
   const grid = document.getElementById('cal-grid');
   grid.innerHTML = '';
