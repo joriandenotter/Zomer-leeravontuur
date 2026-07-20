@@ -124,7 +124,7 @@
   .feedback{ margin-top:14px; font-weight:800; font-family:'Baloo 2'; min-height:24px; }
   .explanation-box{
     margin-top:10px; background:#fff7ec; border-radius:14px; padding:12px 14px;
-    font-size:14px; line-height:1.5; color:#6b4b12; font-weight:600;
+    font-size:14px; line-height:1.6; color:#6b4b12; font-weight:600; white-space:pre-line;
   }
 
   /* ---- Result ---- */
@@ -316,50 +316,93 @@ function contentTierFor(groep){
   return 'c';
 }
 
-const SPELLING_BANK = {
+/* Procedureel spellingsysteem: elke categorie heeft een woordenlijst + een regelmatige "foutmutatie"
+   (de klassieke fout bij dat spellingprobleem) plus een generieke tweede afleider. Zo ontstaan er
+   ruim voldoende unieke vraag-combinaties per niveau, met wisselende antwoordopties elke keer. */
+const SPELLING_CATEGORIES = {
   a: [
-    {s:"De ___ vliegt hoog in de lucht.", o:["vogel","vogol","vogul"], c:0, u:"Je hoort een duidelijke o-klank, die schrijf je met één o: vo-gel."},
-    {s:"Ik doe mijn ___ aan voor ik naar buiten ga.", o:["jasje","jassje","jashe"], c:0, u:"Je schrijft maar één s in jasje; de sj-klank schrijf je met 's' + 'j'."},
-    {s:"We gaan zwemmen in het ___.", o:["zwembad","swembad","zwembadt"], c:0, u:"Het woord begint met 'zw', niet met 's': zwem-bad."},
-    {s:"De kat drinkt ___.", o:["melk","melc","melck"], c:0, u:"De k-klank aan het einde schrijf je met een 'k', niet met 'c'."},
-    {s:"Mijn broer speelt met de ___.", o:["bal","bhal","balh"], c:0, u:"Gewoon 'bal', zonder extra letters."},
-    {s:"In de herfst vallen de ___ van de boom.", o:["blaadjes","bladjes","blaatjes"], c:0, u:"Van 'blad' naar meervoud verdubbel je de a: bla-a-djes."},
-    {s:"Wij eten een lekker ___ brood.", o:["bruin","bruen","bruijn"], c:0, u:"De klank 'ui' schrijf je met u+i: bruin."},
-    {s:"Hij ___ heel hard tijdens de wedstrijd.", o:["rent","rend","reent"], c:0, u:"Bij 'hij rent' schrijf je een 't' aan het einde, ook al hoor je soms een d-klank."},
-    {s:"De ___ schijnt vandaag fel.", o:["zon","son","zonn"], c:0, u:"Het woord begint met 'z', en heeft maar één n."},
-    {s:"Zij tekent een mooie ___.", o:["tekening","teekening","tekenig"], c:0, u:"Van 'tekenen' maak je 'tekening', met één e in de eerste lettergreep."},
-    {s:"We slapen lekker in ons ___.", o:["bed","bedd","bett"], c:0, u:"Kort woord, één d aan het eind: bed."},
-    {s:"De ___ blaft heel hard.", o:["hond","hondt","hont"], c:0, u:"Het woord eindigt op 'd', ook al hoor je een t-klank: hond."}
+    { words:["maan","geel","boot","muur","jaar","teen","poot","buur","kaas","leeg","roos","duur","haar","veer","doos","zuur","staart","weer","kaars","praat"],
+      mutate: w => w.replace(/(aa|ee|oo|uu)/, m => m[0]),
+      explain: w => `Bij '${w}' hoor je een lange klank in een open lettergreep. Die klank schrijf je met twee dezelfde klinkers: ${w}.` },
+    { words:["ijs","trein","klein","wijs","tijd","blij","fijn","plein","wei","klei","rij","prijs","bijl","konijn","ijzer","feit","geit","leiding","vrij","tijger"],
+      mutate: w => w.includes('ij') ? w.replace('ij','ei') : w.replace('ei','ij'),
+      explain: w => `'${w}' schrijf je met ${w.includes('ij') ? "'ij'" : "'ei'"}. Dat moet je gewoon onthouden, want je hoort het verschil niet.` },
+    { words:["bank","hangen","drinken","koning","tong","zingen","klank","kring","jongen","sprong","tank","blank","wang","tang","honger","hengel","drank","slang","zingt","dronken"],
+      mutate: w => w.includes('ng') ? w.replace('ng','nk') : w.replace('nk','ng'),
+      explain: w => `'${w}' schrijf je met '${w.includes('ng') ? 'ng' : 'nk'}'. Let op het verschil met '${w.includes('ng') ? 'nk' : 'ng'}'.` }
   ],
   b: [
-    {s:"Hij ___ (rennen) elke dag naar school.", o:["rent","rennt","reent"], c:0, u:"Bij de hij-vorm van 'rennen' laat je één n vallen: hij rent."},
-    {s:"We hebben een nieuwe ___ gekocht.", o:["bank","bangk","banck"], c:0, u:"De nk-klank schrijf je gewoon met 'n' + 'k': bank."},
-    {s:"De ___ van het huis is groen geverfd.", o:["deur","duer","deurr"], c:0, u:"De tweeklank is 'eu': deur."},
-    {s:"Zij ___ (wandelen) elke ochtend een rondje.", o:["wandelt","wandeld","wandellt"], c:0, u:"Bij zij + werkwoord op -en schrijf je de t-uitgang: wandelt."},
-    {s:"Het is een hele ___ afstand naar school.", o:["lange","langge","lanke"], c:0, u:"'Lang' + e krijgt maar één g erbij: lange."},
-    {s:"We ___ (zitten) al de hele middag te wachten.", o:["zitten","zittn","ziten"], c:0, u:"Korte klank i, dubbele t door de gesloten lettergreep: zit-ten."},
-    {s:"Mijn oma bakt een heerlijke ___.", o:["appeltaart","appeltart","appletaart"], c:0, u:"Samenstelling van 'appel' + 'taart', met dubbele p en dubbele a in taart."},
-    {s:"De trein ___ (vertrekken) over vijf minuten.", o:["vertrekt","vertrekd","vertreckt"], c:0, u:"Bij de hij-vorm van vertrekken schrijf je een 't': vertrekt."},
-    {s:"Dat is een ___ moeilijke som.", o:["hele","heele","heel"], c:0, u:"'Heel' krijgt hier een 'e' erbij, maar geen dubbele e: hele."},
-    {s:"Hij heeft zijn huiswerk ___ (afmaken).", o:["afgemaakt","afgemaakd","afgemaact"], c:0, u:"Voltooid deelwoord van 'maken' eindigt op -kt: afgemaakt."},
-    {s:"We hopen dat het morgen niet gaat ___.", o:["regenen","reegenen","regennen"], c:0, u:"Het werkwoord 'regenen' heeft één e en één n in de stam: rege-nen."},
-    {s:"De ___ van de klas is heel aardig.", o:["juf","juff","juv"], c:0, u:"Kort en simpel: juf, met één f."}
+    { words:["poppen","kammen","tellen","zitten","potten","bakken","kappen","rennen","pakken","wekken","kussen","sokken","brommen","hakken","zwemmen","stoppen","vallen","mollen","tikken","zeggen"],
+      mutate: w => w.replace(/([bcdfghjklmnpqrstvwxz])\1/, '$1'),
+      explain: w => `De klinker ervoor is kort, dus in deze gesloten lettergreep verdubbelt de medeklinker: ${w}.` },
+    { words:["kast","kaars","klok","kip","koffer","kamer","keuken","kachel","kantoor","kater","kabel","kaart","kist","kolen","kegel","kabouter","kunst","karton","katoen","keuze"],
+      mutate: w => w.replace('k','c'),
+      explain: w => `De k-klank aan het begin van '${w}' schrijf je met een 'k', niet met een 'c'.` },
+    { words:["wandelt","fietst","speelt","werkt","loopt","kookt","leest","schrijft","zwemt","rijdt","valt","vraagt","denkt","hoort","kijkt","praat","woont","wacht","lacht","huilt"],
+      mutate: w => w.endsWith('t') ? w.slice(0,-1) : w + 't',
+      explain: w => `Bij de hij/zij-vorm van dit werkwoord hoort een 't' aan het einde: ${w}.` }
   ],
   c: [
-    {s:"Hij ___ (worden) steeds beter in voetbal.", o:["wordt","word","werdt"], c:0, u:"Bij hij/zij + 'worden' schrijf je de d-uitgang: wordt (dt-regel)."},
-    {s:"Zij heeft het boek al ___ (lezen).", o:["gelezen","gelesen","gelezenn"], c:0, u:"Voltooid deelwoord van 'lezen' is 'gelezen', met een z."},
-    {s:"Dat is een ___ (interessant) verhaal.", o:["interessant","interesant","interessantt"], c:0, u:"Dit leenwoord schrijf je met dubbele s: interes-sant."},
-    {s:"De kinderen ___ (worden) om de beurt opgehaald.", o:["worden","werden","wordden"], c:0, u:"De o blijft: 'worden' (niet 'werden', dat is een ander werkwoord)."},
-    {s:"Ik vind dit een ___ (fantastisch) idee.", o:["fantastisch","fantasties","fantastich"], c:0, u:"Dit woord eindigt op -isch, ook al hoor je 'ies': fantastisch."},
-    {s:"Hij heeft de fiets ___ (repareren).", o:["gerepareerd","gerepareert","gerepareerdt"], c:0, u:"Voltooid deelwoord eindigt op -d omdat de stam niet op t/k/f/s/ch/p eindigt: gerepareerd."},
-    {s:"We wonen in een huis met een ___ (tuin) achter.", o:["tuin","tuun","tuijn"], c:0, u:"De tweeklank 'ui' schrijf je met u+i: tuin."},
-    {s:"Zij ___ (fietsen) elke dag naar haar werk.", o:["fietst","fiets","fietsd"], c:0, u:"Bij de zij-vorm van 'fietsen' krijg je een extra t: fietst."},
-    {s:"Dat is een ___ (bijzonder) mooi schilderij.", o:["bijzonder","bijsonder","bijzondere"], c:0, u:"Dit woord schrijf je met een z, niet een s: bij-zon-der."},
-    {s:"De trein-en-bus-___ (combinatie) is erg handig.", o:["combinatie","combinasie","kombinatie"], c:0, u:"Leenwoorden als 'combinatie' schrijf je met c en ti: combi-na-tie."},
-    {s:"Ik heb mijn appel al ___ (opeten).", o:["opgegeten","opgegetten","opgeten"], c:0, u:"Voltooid deelwoord van 'opeten' is 'opgegeten', met ge- ervoor."},
-    {s:"Het ___ (gebeuren) gisteren voor mijn ogen.", o:["gebeurde","gebeurte","gebeurden"], c:0, u:"Verleden tijd van 'gebeuren' (hij/het) is 'gebeurde', met -de."}
+    { words:["gewandeld","gefietst","gespeeld","gewerkt","gekookt","gepraat","gewoond","gewacht","geklopt","gerookt","gehuurd","gestopt","gepoetst","gekamd","geteld","gezocht","gemaakt","gehaald","geleerd","gehuild"],
+      mutate: w => w.endsWith('d') ? w.slice(0,-1)+'t' : w.slice(0,-1)+'d',
+      explain: w => `Dit is de 't kofschip-regel (de dt-regel): dit voltooid deelwoord eindigt op een '${w.slice(-1)}': ${w}.` },
+    { words:["politie","actie","reactie","informatie","organisatie","situatie","motivatie","conditie","natie","sensatie","decoratie","vakantie","relatie","publicatie","educatie","constructie","productie","functie","emotie","promotie"],
+      mutate: w => w.replace('tie','sie'),
+      explain: w => `Dit leenwoord eindigt op '-tie', ook al klinkt het soms als '-sie': ${w}.` },
+    { pairs:[
+        ["pannenkoek","pannekoek"],["hondenhok","hondehok"],["kippenhok","kippehok"],["bloemenwinkel","bloemewinkel"],
+        ["bessensap","bessesap"],["muizenval","muizeval"],["konijnenhok","konijnehok"],["tandenborstel","tandeborstel"],
+        ["kattenbak","kattebak"],["rattenval","ratteval"],["schapenwol","schapewol"],["bijenkorf","bijekorf"],
+        ["apenkooi","apekooi"],["druivensap","druivesap"],["kersenboom","kerseboom"]
+      ],
+      explain: w => `Tussen de twee delen van deze samenstelling hoort een tussen-n: ${w}.` }
   ]
 };
+
+function genericCorrupt(word, avoid){
+  for(let tries=0; tries<10; tries++){
+    let w = word.split('');
+    const strategy = randInt(0,2);
+    if(strategy===0 && w.length>2){
+      const i = randInt(0, w.length-1);
+      w.splice(i,0,w[i]);
+    } else if(strategy===1 && w.length>3){
+      const i = randInt(0, w.length-2);
+      const tmp = w[i]; w[i] = w[i+1]; w[i+1] = tmp;
+    } else {
+      const vowels = 'aeiou';
+      const idxs = w.map((ch,i)=> vowels.includes(ch) ? i : -1).filter(i=>i>=0);
+      if(idxs.length){
+        const i = idxs[randInt(0,idxs.length-1)];
+        const choices = vowels.split('').filter(v=>v!==w[i]);
+        w[i] = choices[randInt(0,choices.length-1)];
+      } else { continue; }
+    }
+    const result = w.join('');
+    if(result !== word && !avoid.includes(result)) return result;
+  }
+  return word + 'x';
+}
+
+const SPELLING_QUESTION_TEMPLATES = ["Welke schrijfwijze is goed?","Welk woord is juist gespeld?","Kies de juiste spelling:"];
+
+function buildSpellingItem(tier){
+  const categories = SPELLING_CATEGORIES[tier];
+  const cat = categories[randInt(0, categories.length-1)];
+  let word, wrongA;
+  if(cat.pairs){
+    const pair = cat.pairs[randInt(0, cat.pairs.length-1)];
+    word = pair[0]; wrongA = pair[1];
+  } else {
+    word = cat.words[randInt(0, cat.words.length-1)];
+    wrongA = cat.mutate(word);
+    if(wrongA === word) wrongA = genericCorrupt(word, [word]);
+  }
+  const wrongB = genericCorrupt(word, [word, wrongA]);
+  const options = shuffle([word, wrongA, wrongB]);
+  const question = SPELLING_QUESTION_TEMPLATES[randInt(0, SPELLING_QUESTION_TEMPLATES.length-1)];
+  return { type:'spelling', question, choices: options, correctText: word, explanation: cat.explain(word) };
+}
 
 const READING_BANK = {
   a: [
@@ -376,6 +419,76 @@ const READING_BANK = {
         {q:"Wat bouwden Lisa en Tom?", o:["Een zandkasteel","Een boot","Een tent"], c:0, u:"Lisa en Tom bouwden samen een zandkasteel met een gracht."},
         {q:"Wat deden ze na het bouwen?", o:["Zwemmen","Slapen","Fietsen"], c:0, u:"Na het bouwen gingen ze zwemmen in de zee."},
         {q:"Welke smaak ijsje aten ze?", o:["Chocolade","Aardbei","Vanille"], c:0, u:"Ze aten een ijsje met chocoladesmaak."}
+      ]},
+    { title:"Het verloren teddybeer",
+      text:"Emma nam haar teddybeer mee naar de speeltuin. Ze legde hem even op de bank terwijl ze ging schommelen. Toen ze terugkwam, was de teddybeer verdwenen! Emma werd verdrietig en begon te huilen. Gelukkig zag de buurman de teddybeer onder de bank liggen en gaf hem terug aan Emma. Emma was superblij en gaf haar teddybeer een dikke knuffel.",
+      qs:[
+        {q:"Waar liet Emma haar teddybeer liggen?", o:["Op de bank","In de zandbak","Bij de glijbaan"], c:0, u:"In de tekst staat dat Emma haar teddybeer op de bank legde."},
+        {q:"Hoe voelde Emma zich toen de beer weg was?", o:["Verdrietig","Boos","Trots"], c:0, u:"Emma werd verdrietig en begon te huilen toen de beer weg was."},
+        {q:"Wie vond de teddybeer terug?", o:["De buurman","Een ander kind","Emma zelf"], c:0, u:"De buurman zag de teddybeer liggen en gaf hem terug."}
+      ]},
+    { title:"De regenboog na de regen",
+      text:"Het regende de hele ochtend, maar in de middag kwam de zon weer tevoorschijn. Tim keek naar buiten en zag iets moois aan de lucht: een grote regenboog! Hij rende naar zijn zusje Noor om het haar te laten zien. Samen telden ze de kleuren: rood, oranje, geel, groen, blauw en paars. Noor zei dat het net een schilderij in de lucht leek.",
+      qs:[
+        {q:"Wanneer kwam de zon weer tevoorschijn?", o:["In de middag","'s Ochtends vroeg","'s Avonds laat"], c:0, u:"De tekst zegt dat de zon in de middag weer tevoorschijn kwam."},
+        {q:"Wat zagen Tim en Noor aan de lucht?", o:["Een regenboog","Een vliegtuig","Een vlieger"], c:0, u:"Tim en Noor zagen een grote regenboog aan de lucht."},
+        {q:"Wat zei Noor over de regenboog?", o:["Dat het een schilderij leek","Dat het ging regenen","Dat ze bang was"], c:0, u:"Noor zei dat de regenboog net een schilderij in de lucht leek."}
+      ]},
+    { title:"Vissen in de sloot",
+      text:"Op een warme zomerdag ging Daan met zijn opa vissen bij de sloot achter het huis. Opa had een klein schepnetje meegenomen. Na een tijdje wachten zag Daan iets bewegen in het water. Voorzichtig schepte hij met het netje en ving een klein visje! Hij bekeek het even goed en liet het toen weer terug zwemmen in de sloot.",
+      qs:[
+        {q:"Met wie ging Daan vissen?", o:["Zijn opa","Zijn vader","Zijn buurjongen"], c:0, u:"Daan ging met zijn opa vissen bij de sloot."},
+        {q:"Wat gebruikte Daan om het visje te vangen?", o:["Een schepnetje","Een hengel","Zijn handen"], c:0, u:"Opa had een schepnetje meegenomen waarmee Daan het visje ving."},
+        {q:"Wat deed Daan met het visje nadat hij het bekeken had?", o:["Hij liet het terug zwemmen","Hij nam het mee naar huis","Hij gaf het aan opa"], c:0, u:"Daan bekeek het visje en liet het daarna terug zwemmen."}
+      ]},
+    { title:"De verjaardag van opa",
+      text:"Vandaag werd opa 70 jaar. De hele familie kwam bij elkaar in de tuin. Er waren slingers opgehangen en er stond een grote taart met kaarsjes op tafel. Iedereen zong voor opa en hij mocht de kaarsjes uitblazen. Daarna kreeg iedereen een stuk taart en speelden de kinderen buiten in de zon.",
+      qs:[
+        {q:"Hoe oud werd opa?", o:["70 jaar","60 jaar","80 jaar"], c:0, u:"In de tekst staat dat opa vandaag 70 jaar werd."},
+        {q:"Waar vierden ze het feest?", o:["In de tuin","In een restaurant","Bij oma thuis"], c:0, u:"De hele familie kwam bij elkaar in de tuin."},
+        {q:"Wat mocht opa doen bij de taart?", o:["De kaarsjes uitblazen","De taart bakken","De slingers ophangen"], c:0, u:"Opa mocht de kaarsjes op de taart uitblazen."}
+      ]},
+    { title:"De ijsjesauto",
+      text:"Op een warme middag hoorde Joep de bekende muziek van de ijsjesauto door de straat rijden. Hij rende meteen naar binnen om zijn spaarpot te pakken. Met twee euro in zijn hand stond hij al snel bij het raampje van de auto. Hij koos een ijsje met aardbeiensmaak en een gekleurde flikje erbovenop. Buiten op de stoep at hij smakelijk zijn ijsje op, voordat het kon smelten in de zon.",
+      qs:[
+        {q:"Waar rende Joep naartoe toen hij de muziek hoorde?", o:["Naar binnen om zijn spaarpot te pakken","Naar de speeltuin","Naar zijn moeder"], c:0, u:"Joep rende naar binnen om zijn spaarpot te pakken."},
+        {q:"Welke smaak ijsje koos Joep?", o:["Aardbei","Chocolade","Vanille"], c:0, u:"Hij koos een ijsje met aardbeiensmaak."},
+        {q:"Waarom at Joep zijn ijsje snel op?", o:["Voordat het kon smelten","Omdat hij honger had","Omdat zijn moeder het zei"], c:0, u:"Hij at zijn ijsje snel op voordat het kon smelten in de zon."}
+      ]},
+    { title:"Het verstopspelletje",
+      text:"Tijdens het buitenspelen stelde Mila voor om verstoppertje te spelen. Haar broertje Joris mocht tellen tot twintig bij de boom. Mila verstopte zich achter de schutting, maar hoorde al snel Joris' voetstappen dichterbij komen. Ze hield haar adem in, maar moest toch even giechelen. Daardoor werd ze snel gevonden. Joris riep lachend dat hij haar had gehoord, en samen speelden ze nog een rondje.",
+      qs:[
+        {q:"Wie mocht er tellen bij het verstoppertje?", o:["Joris","Mila","Allebei"], c:0, u:"Joris mocht tellen tot twintig bij de boom."},
+        {q:"Waar verstopte Mila zich?", o:["Achter de schutting","Onder de trampoline","In de garage"], c:0, u:"Mila verstopte zich achter de schutting."},
+        {q:"Waardoor werd Mila gevonden?", o:["Ze moest giechelen","Ze deed het licht aan","Ze riep haar eigen naam"], c:0, u:"Ze moest giechelen, waardoor Joris haar snel vond."}
+      ]},
+    { title:"De nieuwe fiets",
+      text:"Voor haar verjaardag kreeg Fleur een gloednieuwe fiets met roze bel. In het begin vond ze het spannend om zonder zijwieltjes te fietsen. Haar vader hield het zadel vast terwijl zij voorzichtig trapte. Na een paar keer vallen en weer opstaan, lukte het Fleur ineens vanzelf. Ze fietste een heel rondje om het huis, terwijl haar vader trots stond te kijken.",
+      qs:[
+        {q:"Wat kreeg Fleur voor haar verjaardag?", o:["Een nieuwe fiets","Een nieuwe step","Nieuwe schoenen"], c:0, u:"Fleur kreeg een gloednieuwe fiets met roze bel."},
+        {q:"Wie hield het zadel vast?", o:["Haar vader","Haar moeder","Haar broertje"], c:0, u:"Haar vader hield het zadel vast terwijl zij trapte."},
+        {q:"Wat gebeurde er nadat Fleur een paar keer viel?", o:["Het lukte haar vanzelf","Ze stopte met fietsen","Ze ging weer zijwieltjes gebruiken"], c:0, u:"Na een paar keer vallen lukte het Fleur ineens vanzelf."}
+      ]},
+    { title:"De picknick in het park",
+      text:"Op een zonnige zaterdag pakte de familie van Bo een grote picknickmand in met broodjes, fruit en limonade. Ze zochten een plekje onder een grote boom in het park. Terwijl ze aten, kwam er een eekhoorn nieuwsgierig dichterbij huppelen. Bo gooide voorzichtig een klein stukje brood in zijn richting. De eekhoorn pakte het snel en rende ermee de boom in.",
+      qs:[
+        {q:"Wat had de familie van Bo ingepakt?", o:["Broodjes, fruit en limonade","Alleen chips","Pizza"], c:0, u:"Ze pakten broodjes, fruit en limonade in voor de picknick."},
+        {q:"Waar zochten ze een plekje?", o:["Onder een grote boom","Bij de vijver","Op het speelveld"], c:0, u:"Ze zochten een plekje onder een grote boom in het park."},
+        {q:"Wat deed de eekhoorn met het brood?", o:["Hij pakte het en rende de boom in","Hij liet het liggen","Hij at het meteen op ter plekke"], c:0, u:"De eekhoorn pakte het brood en rende ermee de boom in."}
+      ]},
+    { title:"Het vogelnestje",
+      text:"Tijdens het spelen in de tuin ontdekte Sem een klein vogelnestje laag in de heg. Voorzichtig keek hij erin en zag drie kleine eitjes liggen. Hij wilde het nestje heel graag aanraken, maar zijn moeder legde uit dat de vogeltjes dan misschien niet meer zouden terugkomen. Sem besloot het nestje met rust te laten en keek er elke dag stiekem naar vanaf een afstandje.",
+      qs:[
+        {q:"Waar vond Sem het vogelnestje?", o:["Laag in de heg","Op het dak","In een boom"], c:0, u:"Sem vond het vogelnestje laag in de heg."},
+        {q:"Wat lag er in het nestje?", o:["Drie kleine eitjes","Een jong vogeltje","Niets"], c:0, u:"In het nestje lagen drie kleine eitjes."},
+        {q:"Waarom mocht Sem het nestje niet aanraken?", o:["De vogeltjes zouden dan misschien niet terugkomen","Het nestje was vies","Zijn moeder was bang voor vogels"], c:0, u:"Zijn moeder legde uit dat de vogeltjes dan misschien niet meer terug zouden komen."}
+      ]},
+    { title:"Een regenachtige middag",
+      text:"Het regende de hele middag pijpenstelen, dus konden Noa en haar zusje niet buiten spelen. In plaats daarvan haalden ze een grote doos met verkleedkleren tevoorschijn. Noa verkleedde zich als prinses en haar zusje als ridder. Samen bouwden ze een kasteel van kussens in de woonkamer en verzonnen ze een heel verhaal erover. Aan het einde van de middag waren ze de regen helemaal vergeten.",
+      qs:[
+        {q:"Waarom konden Noa en haar zusje niet buiten spelen?", o:["Het regende de hele middag","Het was te koud","Ze waren ziek"], c:0, u:"Het regende de hele middag pijpenstelen."},
+        {q:"Waar verkleedden ze zich mee?", o:["Verkleedkleren","Zwemkleding","Sportkleding"], c:0, u:"Ze haalden een doos met verkleedkleren tevoorschijn."},
+        {q:"Wat bouwden ze in de woonkamer?", o:["Een kasteel van kussens","Een tent van lakens","Een iglo"], c:0, u:"Samen bouwden ze een kasteel van kussens in de woonkamer."}
       ]}
   ],
   b: [
@@ -392,6 +505,76 @@ const READING_BANK = {
         {q:"Wie organiseerde de wedstrijd?", o:["Meester Karim","Juf Fenna","De directeur"], c:0, u:"Meester Karim organiseerde de hardloopwedstrijd."},
         {q:"Waarom moest Youssef vertragen?", o:["Steken in zijn zij","Hij viel","Hij was moe van tevoren"], c:0, u:"Youssef kreeg steken in zijn zij, waardoor hij moest vertragen."},
         {q:"Hoe reageerde Youssef op zijn verlies?", o:["Sportief","Boos","Verdrietig en jaloers"], c:0, u:"Youssef feliciteerde Fenna sportief, ook al had hij zelf verloren."}
+      ]},
+    { title:"De schoolreis naar de kinderboerderij",
+      text:"Groep 5 ging op schoolreis naar een kinderboerderij net buiten het dorp. Bij aankomst mochten de kinderen eerst de geiten en schapen aaien. Meneer Bos, de boerderijgids, vertelde honderduit over hoe je een koe moest melken. Sanne vond dit maar een vreemd gezicht en durfde het zelf niet te proberen, maar haar vriendin Elin trok juist enthousiast aan de uier. Aan het einde van de dag kregen alle kinderen een vers glas melk om te proeven, rechtstreeks van de boerderij.",
+      qs:[
+        {q:"Wie vertelde over het melken van een koe?", o:["Meneer Bos","De juf","Een andere ouder"], c:0, u:"Meneer Bos, de boerderijgids, vertelde over het melken van een koe."},
+        {q:"Wie durfde zelf een koe te melken?", o:["Elin","Sanne","Niemand"], c:0, u:"Elin trok enthousiast aan de uier, terwijl Sanne het niet durfde."},
+        {q:"Wat kregen de kinderen aan het einde van de dag?", o:["Een glas verse melk","Een stuk kaas","Een setje wol"], c:0, u:"Aan het einde van de dag kregen de kinderen een vers glas melk."}
+      ]},
+    { title:"Het verdwenen huiswerk",
+      text:"Milan had zijn rekenwerkstuk de avond ervoor helemaal afgemaakt en netjes in zijn schooltas gestopt. Toen hij 's ochtends op school aankwam, kon hij het werkstuk nergens meer vinden. Hij werd helemaal zenuwachtig, want de juf had gezegd dat het echt op tijd ingeleverd moest worden. Uiteindelijk bleek zijn kleine zusje het werkstuk uit de tas gehaald te hebben om er zelf op te tekenen. Milan moest hard lachen toen hij de kleurige krabbels op zijn sommen zag, en besloot voortaan zijn tas hoger neer te leggen.",
+      qs:[
+        {q:"Wanneer had Milan zijn werkstuk afgemaakt?", o:["De avond ervoor","Diezelfde ochtend","Een week eerder"], c:0, u:"Milan had zijn werkstuk de avond ervoor afgemaakt en in zijn tas gestopt."},
+        {q:"Wie had het werkstuk uit de tas gehaald?", o:["Zijn zusje","Zijn moeder","De hond"], c:0, u:"Zijn kleine zusje bleek het werkstuk uit de tas gehaald te hebben."},
+        {q:"Hoe reageerde Milan uiteindelijk?", o:["Hij moest lachen","Hij werd boos","Hij ging huilen"], c:0, u:"Milan moest hard lachen toen hij de tekeningen op zijn sommen zag."}
+      ]},
+    { title:"De buurtbarbecue",
+      text:"Elk jaar organiseert de straat van Fenne een grote buurtbarbecue aan het einde van de zomervakantie. Alle buren zetten tafels en stoelen buiten op straat en iedereen neemt iets lekkers mee om te delen. Dit jaar regende het de hele middag, waardoor de buren snel moesten schuilen onder een grote partytent die meneer Aslan had opgezet. Ondanks de regen werd het toch een gezellige avond, met muziek, verhalen en heerlijk eten onder de tent.",
+      qs:[
+        {q:"Wanneer wordt de buurtbarbecue meestal gehouden?", o:["Aan het einde van de zomervakantie","Met Pasen","Aan het begin van het schooljaar"], c:0, u:"Elk jaar wordt de buurtbarbecue aan het einde van de zomervakantie gehouden."},
+        {q:"Wat gebeurde er dit jaar tijdens de barbecue?", o:["Het regende de hele middag","Er was een stroomstoring","De barbecue ging niet door"], c:0, u:"Dit jaar regende het de hele middag tijdens de barbecue."},
+        {q:"Wie had de partytent opgezet?", o:["Meneer Aslan","Fenne's vader","De buurtvereniging"], c:0, u:"Meneer Aslan had de grote partytent opgezet waaronder ze schuilden."}
+      ]},
+    { title:"Een nieuwe vriend in de klas",
+      text:"Halverwege het schooljaar kwam er een nieuwe jongen in groep 6: Idris. Hij kwam net vanuit een andere stad en kende nog niemand. In het begin zat hij vooral stil in een hoekje tijdens de pauze. Lotte merkte dit op en vroeg of hij mee wilde doen met een potje voetbal. Idris knapte helemaal op en bleek heel goed te kunnen voetballen. Binnen een paar weken had hij een hele groep nieuwe vrienden gemaakt, mede dankzij Lotte's uitnodiging.",
+      qs:[
+        {q:"In welke groep kwam Idris terecht?", o:["Groep 6","Groep 5","Groep 7"], c:0, u:"Idris kwam in groep 6 terecht, midden in het schooljaar."},
+        {q:"Wat deed Idris in het begin tijdens de pauze?", o:["Stil in een hoekje zitten","Meteen met iedereen praten","Naar huis fietsen"], c:0, u:"In het begin zat Idris stil in een hoekje tijdens de pauze."},
+        {q:"Wie vroeg Idris om mee te voetballen?", o:["Lotte","De juf","Zijn buurjongen"], c:0, u:"Lotte vroeg Idris of hij mee wilde doen met voetballen."}
+      ]},
+    { title:"De verdwaalde koffer",
+      text:"Bij aankomst op de camping in Frankrijk merkte de familie van Timo dat een van hun koffers niet was aangekomen. Timo's moeder belde meteen de luchtvaartmaatschappij, die beloofde de koffer zo snel mogelijk op te sporen. De eerste twee dagen moest Timo het doen met geleende kleren van zijn neef, wat hij maar een raar gezicht vond. Op de derde dag werd de koffer eindelijk bij de receptie van de camping afgeleverd, tot grote opluchting van de hele familie.",
+      qs:[
+        {q:"Wat ontdekte de familie bij aankomst?", o:["Een koffer ontbrak","De tent was kapot","Ze waren te laat"], c:0, u:"Bij aankomst merkten ze dat een koffer niet was aangekomen."},
+        {q:"Wat deed Timo de eerste twee dagen?", o:["Geleende kleren dragen van zijn neef","Zonder kleren rondlopen","Nieuwe kleren kopen"], c:0, u:"Timo moest het doen met geleende kleren van zijn neef."},
+        {q:"Waar werd de koffer uiteindelijk afgeleverd?", o:["Bij de receptie van de camping","Bij hun tent","Op het vliegveld"], c:0, u:"Op de derde dag werd de koffer bij de receptie van de camping afgeleverd."}
+      ]},
+    { title:"Het geheime recept van oma",
+      text:"Elke zomer bakt oma Ria haar beroemde appeltaart, waarvan niemand het precieze recept kent. Haar kleindochter Julia was al jaren vastbesloten om erachter te komen wat het geheime ingrediënt was. Dit jaar mocht Julia voor het eerst helpen in de keuken en zag ze oma stiekem een snufje kaneel en een scheutje citroensap toevoegen. Trots noteerde Julia het recept in haar schriftje, al beloofde ze oma het geheim voorlopig nog voor zich te houden.",
+      qs:[
+        {q:"Wat bakt oma Ria elke zomer?", o:["Haar beroemde appeltaart","Koekjes","Een verjaardagstaart"], c:0, u:"Elke zomer bakt oma Ria haar beroemde appeltaart."},
+        {q:"Wat ontdekte Julia als geheime ingrediënten?", o:["Kaneel en citroensap","Chocolade en noten","Honing en kokos"], c:0, u:"Julia zag oma een snufje kaneel en een scheutje citroensap toevoegen."},
+        {q:"Wat deed Julia met het recept?", o:["Ze noteerde het in haar schriftje","Ze vertelde het meteen door","Ze vergat het weer"], c:0, u:"Julia noteerde het recept trots in haar schriftje."}
+      ]},
+    { title:"De schoolmusical",
+      text:"Groep 7 werkte al weken hard aan de jaarlijkse schoolmusical, dit keer over een piratenschip op zoek naar een verborgen schat. Yigit had de hoofdrol als kapitein gekregen, maar was ontzettend zenuwachtig voor de generale repetitie. Tijdens de repetitie vergat hij plotseling zijn tekst, maar zijn klasgenoot Amara fluisterde hem net op tijd de juiste woorden toe. Dankzij haar hulp verliep de echte voorstelling een week later foutloos, en kreeg de klas een daverend applaus.",
+      qs:[
+        {q:"Waar ging de schoolmusical over?", o:["Een piratenschip op zoek naar een schat","Een ruimtereis","Een sprookje"], c:0, u:"De musical ging over een piratenschip op zoek naar een verborgen schat."},
+        {q:"Wat gebeurde er tijdens de generale repetitie?", o:["Yigit vergat zijn tekst","De muziek deed het niet","Iemand werd ziek"], c:0, u:"Tijdens de repetitie vergat Yigit plotseling zijn tekst."},
+        {q:"Wie hielp Yigit op het juiste moment?", o:["Amara","De juf","Zijn moeder"], c:0, u:"Zijn klasgenoot Amara fluisterde hem de juiste woorden toe."}
+      ]},
+    { title:"Het krantenwijkje",
+      text:"Sinds afgelopen maand heeft Bilal een eigen krantenwijk, waarmee hij elke ochtend voor school een straat verder de kranten rondbrengt. In het begin vond hij het lastig om op tijd op te staan, maar inmiddels went het al aardig. Op een ochtend ontdekte hij dat een van de bewoners, meneer Dekker, al weken geen krant meer had ontvangen door een fout in de bezorglijst. Bilal loste het meteen op en kreeg van meneer Dekker een dikke pluim en een zakcentje extra.",
+      qs:[
+        {q:"Wat doet Bilal sinds afgelopen maand?", o:["Kranten rondbrengen","Boodschappen doen","Op zijn buurmeisje passen"], c:0, u:"Bilal heeft sinds afgelopen maand een eigen krantenwijk."},
+        {q:"Wat ontdekte Bilal over meneer Dekker?", o:["Hij had al weken geen krant ontvangen","Hij was verhuisd","Hij had twee kranten besteld"], c:0, u:"Meneer Dekker had al weken geen krant meer ontvangen door een fout in de bezorglijst."},
+        {q:"Wat kreeg Bilal van meneer Dekker?", o:["Een compliment en extra zakgeld","Een nieuwe fiets","Niets"], c:0, u:"Bilal kreeg van meneer Dekker een dikke pluim en een zakcentje extra."}
+      ]},
+    { title:"De zwemdiploma-dag",
+      text:"Na maanden van zwemles was het eindelijk zover: Roos mocht examen doen voor haar zwemdiploma A. Ze was best zenuwachtig voor het onderdeel waarbij ze met kleren aan het water in moest springen. Toen het zover was, aarzelde ze even bij de rand, maar met een diepe zucht sprong ze toch. Na afloop van alle onderdelen kreeg Roos van de zwemjuf te horen dat ze geslaagd was, en mocht ze haar gloednieuwe diploma met trots aan haar ouders laten zien.",
+      qs:[
+        {q:"Waarvoor mocht Roos examen doen?", o:["Haar zwemdiploma A","Haar fietsdiploma","Haar EHBO-diploma"], c:0, u:"Roos mocht examen doen voor haar zwemdiploma A."},
+        {q:"Waar was Roos het meest zenuwachtig voor?", o:["Springen met kleren aan in het water","Het zwemmen zelf","De prijsuitreiking"], c:0, u:"Ze was zenuwachtig voor het onderdeel met kleren aan in het water springen."},
+        {q:"Wat gebeurde er aan het einde?", o:["Roos was geslaagd","Roos moest het examen overdoen","Het examen werd afgelast"], c:0, u:"De zwemjuf vertelde dat Roos geslaagd was."}
+      ]},
+    { title:"Het verrassingsfeest voor de juf",
+      text:"Toen groep 6 hoorde dat hun juf na de zomervakantie ging verhuizen naar een andere stad, besloten de kinderen in het geheim een verrassingsfeest te organiseren. Twee klasgenoten, Nour en Daan, coördineerden alles: van slingers ophangen tot het verzamelen van geld voor een cadeau. Op de laatste schooldag deed de klas alsof er niets bijzonders was, tot de juf de klas binnenliep en een grote verrassing zag. Ze moest bijna huilen van ontroering, en bedankte iedereen voor het mooie afscheid.",
+      qs:[
+        {q:"Waarom organiseerde de klas een verrassingsfeest?", o:["De juf ging verhuizen","De juf was jarig","School was afgelopen"], c:0, u:"De juf ging na de zomervakantie verhuizen naar een andere stad."},
+        {q:"Wie coördineerden de organisatie?", o:["Nour en Daan","De directeur","Alle ouders"], c:0, u:"Nour en Daan coördineerden de organisatie van het feest."},
+        {q:"Hoe reageerde de juf op de verrassing?", o:["Ze werd ontroerd","Ze werd boos","Ze merkte niks"], c:0, u:"Ze moest bijna huilen van ontroering."}
       ]}
   ],
   c: [
@@ -408,6 +591,76 @@ const READING_BANK = {
         {q:"Wat was er gepland voor die avond?", o:["Een filmavond","Een sportdag","Een zwemles"], c:0, u:"Er was een filmavond gepland die avond."},
         {q:"Wat deed Amina in plaats daarvan?", o:["Een verhalenavond organiseren","Iedereen laten slapen","De stroom repareren"], c:0, u:"Amina organiseerde in plaats daarvan een verhalenavond bij het kampvuur."},
         {q:"Wat gebeurde er met de verhalenavond sindsdien?", o:["Het werd een vast onderdeel","Het werd verboden","Niemand herinnerde het zich"], c:0, u:"De verhalenavond werd sindsdien elk jaar een vast onderdeel."}
+      ]},
+    { title:"De storm die de vakantie veranderde",
+      text:"Tijdens hun kampeervakantie in de Ardennen werden Bram en zijn ouders midden in de nacht wakker van een hevige storm. De wind rukte bijna hun tent los, en in de verte klonk voortdurend gerommel van onweer. Bij het ochtendgloren bleek een grote boom vlak naast hun tent te zijn omgevallen, gelukkig zonder schade aan te richten. De camping besloot alle kampeerders voor de rest van de vakantie onder te brengen in stevige safaritenten, wat Bram stiekem nog wel spannend vond ook.",
+      qs:[
+        {q:"Waar kampeerden Bram en zijn ouders?", o:["In de Ardennen","Aan de Franse kust","In Duitsland"], c:0, u:"Bram en zijn ouders kampeerden in de Ardennen."},
+        {q:"Wat gebeurde er met een boom naast hun tent?", o:["Hij waaide om","Hij werd geraakt door bliksem","Er gebeurde niks mee"], c:0, u:"Bij het ochtendgloren bleek een boom naast hun tent te zijn omgevallen."},
+        {q:"Waar werden de kampeerders daarna ondergebracht?", o:["In stevige safaritenten","In een hotel","Bij de campingbaas thuis"], c:0, u:"De camping bracht de kampeerders onder in stevige safaritenten."}
+      ]},
+    { title:"Het raadsel van de oude brief",
+      text:"Op zolder bij oma vond Sofie een verzegelde brief, geadresseerd aan iemand die ze niet kende. Nieuwsgierig als ze was, vroeg ze oma ernaar, die vertelde dat de brief al meer dan veertig jaar ongeopend had gelegen. Het bleek een liefdesbrief te zijn die oma's overleden broer nooit had durven versturen. Samen besloten ze de brief eindelijk open te maken en te lezen wat erin stond, wat oma diep ontroerde maar ook een glimlach op haar gezicht toverde.",
+      qs:[
+        {q:"Waar vond Sofie de brief?", o:["Op zolder","In de kelder","In een oude kast"], c:0, u:"Sofie vond de verzegelde brief op zolder bij oma."},
+        {q:"Hoe lang had de brief al ongeopend gelegen?", o:["Meer dan veertig jaar","Twintig jaar","Een paar maanden"], c:0, u:"De brief had al meer dan veertig jaar ongeopend gelegen."},
+        {q:"Van wie bleek de brief te zijn?", o:["Oma's overleden broer","Oma zelf","Een onbekende"], c:0, u:"De brief bleek van oma's overleden broer te zijn."}
+      ]},
+    { title:"De wedstrijd tussen twee scholen",
+      text:"Elk jaar organiseren twee basisscholen uit het dorp een sportdag tegen elkaar, met verschillende onderdelen zoals hardlopen, touwtrekken en een estafette. Dit jaar stond de wedstrijd gelijk tot aan het allerlaatste onderdeel: de estafette. Team van de Beukenschool leek ruim op voorsprong te liggen, tot hun laatste loper struikelde over zijn veter. Het gaf de Lindeschool net genoeg tijd om de achterstand in te lopen en de wedstrijd alsnog te winnen, tot grote vreugde van hun aanhang langs de kant.",
+      qs:[
+        {q:"Welke onderdelen had de sportdag?", o:["Hardlopen, touwtrekken en estafette","Alleen voetbal","Zwemmen en fietsen"], c:0, u:"De sportdag bestond uit hardlopen, touwtrekken en een estafette."},
+        {q:"Waarom liep de Beukenschool de wedstrijd mis?", o:["Hun laatste loper struikelde","Ze kwamen te laat","Ze speelden vals"], c:0, u:"De laatste loper van de Beukenschool struikelde over zijn veter."},
+        {q:"Welke school won uiteindelijk?", o:["De Lindeschool","De Beukenschool","Het werd gelijkspel"], c:0, u:"De Lindeschool liep de achterstand in en won de wedstrijd alsnog."}
+      ]},
+    { title:"Het bericht in de fles",
+      text:"Tijdens hun strandvakantie vonden Yara en haar broer een oude glazen fles die was aangespoeld, met daarin een opgerold briefje. Nieuwsgierig maakten ze de fles open en lazen een berichtje van een jongen die drie jaar eerder op hetzelfde strand op vakantie was geweest. Hij had zijn naam en woonplaats erin geschreven, met de vraag of de vinder hem ooit zou kunnen opsporen. Yara's vader hielp hen uiteindelijk via internet de jongen terug te vinden, en de twee families besloten contact met elkaar te houden.",
+      qs:[
+        {q:"Wat vonden Yara en haar broer op het strand?", o:["Een fles met een briefje","Een schat in het zand","Een verdwaald huisdier"], c:0, u:"Yara en haar broer vonden een fles met een opgerold briefje."},
+        {q:"Hoe lang geleden had de jongen het briefje geschreven?", o:["Drie jaar eerder","Tien jaar eerder","Vorige week"], c:0, u:"De jongen had het briefje drie jaar eerder geschreven."},
+        {q:"Wie hielp om de jongen terug te vinden?", o:["Yara's vader","De strandwacht","Een buurman"], c:0, u:"Yara's vader hielp hen de jongen via internet terug te vinden."}
+      ]},
+    { title:"De ontdekking in de grot",
+      text:"Tijdens een wandeltocht in de Belgische Ardennen besloten Anouk en haar neef Wout een zijpad te nemen dat naar een kleine grot leidde. Gewapend met zaklampen liepen ze voorzichtig naar binnen, onder de indruk van de druipstenen die van het plafond hingen. Diep in de grot ontdekten ze plotseling oude tekeningen op de rotswand, die volgens een latere expert honderden jaren oud bleken te zijn. De vondst werd gemeld bij de plaatselijke autoriteiten, die de grot voortaan wilden beschermen tegen verdere schade.",
+      qs:[
+        {q:"Waar wandelden Anouk en Wout?", o:["In de Belgische Ardennen","In de Franse Alpen","Op de Veluwe"], c:0, u:"Ze wandelden tijdens een tocht in de Belgische Ardennen."},
+        {q:"Wat ontdekten ze diep in de grot?", o:["Oude tekeningen op de rotswand","Een verborgen schat","Een onderaards meer"], c:0, u:"Diep in de grot ontdekten ze oude tekeningen op de rotswand."},
+        {q:"Wat gebeurde er met de vondst?", o:["Hij werd gemeld bij de autoriteiten","Niemand geloofde hen","Ze namen de tekeningen mee"], c:0, u:"De vondst werd gemeld bij de plaatselijke autoriteiten."}
+      ]},
+    { title:"Het dagboek op zolder",
+      text:"Bij het opruimen van de zolder na de verhuizing vond Merel een verstoft dagboek, verstopt achter een losse plank. Het bleek toe te behoren aan een meisje dat honderd jaar eerder in hetzelfde huis had gewoond. Geboeid las Merel over het dagelijkse leven van toen: geen elektriciteit, water halen bij de pomp, en lange schooldagen zonder vakantie. Ze besloot het dagboek zorgvuldig te bewaren en nam contact op met het plaatselijke museum, dat graag meer wilde weten over deze bijzondere vondst.",
+      qs:[
+        {q:"Waar vond Merel het dagboek?", o:["Achter een losse plank op zolder","In een oude kist","Onder haar bed"], c:0, u:"Merel vond het dagboek verstopt achter een losse plank op zolder."},
+        {q:"Van wanneer was het dagboek?", o:["Van honderd jaar eerder","Van tien jaar eerder","Van net na de oorlog"], c:0, u:"Het dagboek bleek van honderd jaar eerder te zijn."},
+        {q:"Wat deed Merel uiteindelijk met het dagboek?", o:["Ze nam contact op met het museum","Ze gooide het weg","Ze verstopte het weer"], c:0, u:"Ze nam contact op met het plaatselijke museum over de vondst."}
+      ]},
+    { title:"De sponsorloop voor het goede doel",
+      text:"Elk jaar organiseert de school van Kaan een sponsorloop, waarbij het opgehaalde geld naar een goed doel gaat. Dit jaar hadden de leerlingen gekozen voor een organisatie die schone drinkwaterputten bouwt in droge gebieden. Kaan had van tevoren flink wat sponsors geworven bij familie en buren, en liep uiteindelijk maar liefst tien rondjes om het schoolplein. Aan het einde van de dag bleek de school gezamenlijk meer dan tweeduizend euro te hebben opgehaald, een bedrag waarmee al snel een hele waterput gebouwd kon worden.",
+      qs:[
+        {q:"Waarvoor was de sponsorloop dit jaar bedoeld?", o:["Schone drinkwaterputten bouwen","Nieuwe schoolboeken kopen","Een schoolreisje betalen"], c:0, u:"Het geld ging naar een organisatie die drinkwaterputten bouwt."},
+        {q:"Hoeveel rondjes liep Kaan?", o:["Tien rondjes","Vijf rondjes","Twintig rondjes"], c:0, u:"Kaan liep uiteindelijk tien rondjes om het schoolplein."},
+        {q:"Hoeveel geld haalde de school gezamenlijk op?", o:["Meer dan tweeduizend euro","Precies duizend euro","Vijfhonderd euro"], c:0, u:"De school haalde gezamenlijk meer dan tweeduizend euro op."}
+      ]},
+    { title:"Het mysterieuze pakketje",
+      text:"Op een doodgewone dinsdag werd er bij de familie Verhoeven een pakketje bezorgd zonder afzender erop vermeld. Nieuwsgierig maakte vader Ruben het pakketje open en trof daarin een oud fotoalbum aan, met foto's van mensen die niemand in het gezin herkende. Pas na wat speurwerk ontdekte Ruben's dochter Bibi, via een naam op de achterkant van een foto, dat het album per ongeluk bij hen bezorgd was in plaats van bij de buren twee straten verderop. Het bleek een dierbaar familiestuk te zijn dat de buren al jaren kwijt waren.",
+      qs:[
+        {q:"Wat zat er in het mysterieuze pakketje?", o:["Een oud fotoalbum","Geld","Een brief"], c:0, u:"In het pakketje zat een oud fotoalbum."},
+        {q:"Wie ontdekte waar het pakketje eigenlijk voor bedoeld was?", o:["Bibi","Vader Ruben","De postbode"], c:0, u:"Bibi ontdekte via een naam op een foto waar het album eigenlijk voor bedoeld was."},
+        {q:"Voor wie bleek het pakketje eigenlijk bestemd?", o:["De buren twee straten verderop","Een onbekende","Niemand, het was een vergissing van de fabriek"], c:0, u:"Het pakketje bleek eigenlijk bestemd voor de buren twee straten verderop."}
+      ]},
+    { title:"Het interview met de burgemeester",
+      text:"Voor een schoolproject over de gemeente mocht groep 8 een echt interview afnemen met de burgemeester. Fenna en haar groepje hadden van tevoren een lijst met kritische vragen voorbereid, onder andere over de aanleg van een nieuw fietspad waar veel buurtbewoners al jaren om vroegen. Tijdens het interview bleek de burgemeester open te staan voor de vragen en beloofde hij het fietspad nog dit jaar te laten aanleggen. Het groepje was apetrots dat hun project misschien echt iets kon veranderen in hun buurt.",
+      qs:[
+        {q:"Voor welk project mocht groep 8 de burgemeester interviewen?", o:["Een schoolproject over de gemeente","Een project over verkeer","Een spreekbeurt"], c:0, u:"Het was voor een schoolproject over de gemeente."},
+        {q:"Waar ging een van de kritische vragen over?", o:["Een nieuw fietspad","Een nieuw zwembad","Lagere belastingen"], c:0, u:"Een van de vragen ging over de aanleg van een nieuw fietspad."},
+        {q:"Wat beloofde de burgemeester?", o:["Het fietspad nog dit jaar aan te leggen","Meer geld voor de school","Een bezoek aan de klas"], c:0, u:"Hij beloofde het fietspad nog dit jaar te laten aanleggen."}
+      ]},
+    { title:"De laatste training voor de wedstrijd",
+      text:"Met nog maar een week te gaan tot het regionale schoolvoetbaltoernooi, trainde het team van basisschool De Wingerd extra hard. Trainer Vural besloot de laatste training vooral te gebruiken om de opstelling te bespreken, iets waar niet iedereen blij mee was. Spits Damian was teleurgesteld toen bleek dat hij op de reservebank zou beginnen, maar besloot zijn frustratie om te zetten in extra inzet tijdens de training. Die instelling viel zo op bij Vural, dat hij besloot de opstelling alsnog aan te passen vlak voor de wedstrijd zelf.",
+      qs:[
+        {q:"Waarvoor trainde het team van De Wingerd extra hard?", o:["Het regionale schoolvoetbaltoernooi","De sportdag","Een vriendschappelijke wedstrijd"], c:0, u:"Ze trainden extra hard voor het regionale schoolvoetbaltoernooi."},
+        {q:"Waar was Damian teleurgesteld over?", o:["Hij zou op de reservebank beginnen","Hij mocht niet meedoen","Het toernooi ging niet door"], c:0, u:"Damian was teleurgesteld dat hij op de reservebank zou beginnen."},
+        {q:"Wat deed trainer Vural uiteindelijk?", o:["Hij paste de opstelling alsnog aan","Hij liet Damian thuis","Hij stopte als trainer"], c:0, u:"Vural besloot de opstelling alsnog aan te passen vlak voor de wedstrijd."}
       ]}
   ]
 };
@@ -427,7 +680,21 @@ function makeChoices(answer, spread){
 
 function explainPlus(a,b,answer){ return `${a} + ${b} = ${answer}. Je telt de twee getallen bij elkaar op.`; }
 function explainMinus(a,b,answer){ return `${a} - ${b} = ${answer}. Je haalt ${b} af van ${a}.`; }
-function explainKeer(a,b,answer){ return `${a} × ${b} = ${answer}. Dat is ${a} keer het getal ${b} bij elkaar optellen.`; }
+function explainKeer(a,b,answer){
+  if(a < 10 && b < 10){
+    return `${a} × ${b} = ${answer}. Dit is een tafelsom die je uit je hoofd kunt leren.`;
+  }
+  let big = a, small = b;
+  if(b > a){ big = b; small = a; }
+  const tens = Math.floor(big/10)*10;
+  const ones = big % 10;
+  if(ones === 0){
+    return `${a} × ${b} = ${answer}. Omdat ${big} een rond tiental is, reken je gewoon: ${tens} × ${small} = ${answer}.`;
+  }
+  const tensPart = tens*small;
+  const onesPart = ones*small;
+  return `${a} × ${b} = ${answer}. Splits ${big} in ${tens} en ${ones}:\n${tens} × ${small} = ${tensPart}\n${ones} × ${small} = ${onesPart}\nen dus ${tensPart} + ${onesPart} = ${answer}`;
+}
 function explainDeel(a,b,answer){ return `${a} : ${b} = ${answer}, want ${answer} × ${b} = ${a}.`; }
 function explainProcent(pct,base,answer){ return `${pct}% van ${base} = ${answer}. Je rekent: ${pct}/100 × ${base} = ${answer}.`; }
 function explainVolgorde(a,b,c,answer){ return `Eerst ${b} × ${c} = ${b*c} uitrekenen, dan pas optellen: ${a} + ${b*c} = ${answer}. Vermenigvuldigen gaat vóór optellen!`; }
@@ -766,12 +1033,17 @@ function buildQuizItems(subject, groep, subLevel){
     return items;
   }
   if(subject === 'spelling'){
-    const bank = shuffle(SPELLING_BANK[tier]).slice(0,8);
-    return bank.map(item=>{
-      const options = item.o.map((text,i)=>({text, isCorrect:i===item.c}));
-      const shuffled = shuffle(options);
-      return { type:'spelling', question:item.s, choices:shuffled.map(o=>o.text), correctText:item.o[item.c], explanation:item.u };
-    });
+    const items = [];
+    const usedWords = new Set();
+    let attempts = 0;
+    while(items.length < 8 && attempts < 300){
+      attempts++;
+      const item = buildSpellingItem(tier);
+      if(usedWords.has(item.correctText)) continue;
+      usedWords.add(item.correctText);
+      items.push(item);
+    }
+    return items;
   }
   if(subject === 'lezen'){
     const bank = READING_BANK[tier];
