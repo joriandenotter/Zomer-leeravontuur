@@ -263,6 +263,7 @@
       <div class="choices" id="quiz-choices"></div>
       <div class="feedback" id="quiz-feedback"></div>
       <div class="explanation-box hidden" id="quiz-explanation"></div>
+      <button class="btn-primary hidden" id="quiz-next-btn" style="width:100%; margin-top:16px;" onclick="goNextQuestion()">Volgende vraag →</button>
     </div>
   </div>
 
@@ -819,6 +820,7 @@ function renderQuizQuestion(){
   const explanationBox = document.getElementById('quiz-explanation');
   explanationBox.classList.add('hidden');
   explanationBox.textContent = '';
+  document.getElementById('quiz-next-btn').classList.add('hidden');
 
   const passageBox = document.getElementById('passage-box');
   if(item.type === 'lezen'){
@@ -854,7 +856,6 @@ function selectAnswer(choiceText, btnEl){
   });
   const feedback = document.getElementById('quiz-feedback');
   const explanationBox = document.getElementById('quiz-explanation');
-  let waitTime = 1300;
   if(isCorrect){
     quizCorrectCount++;
     feedback.textContent = '✅ Goed gedaan!';
@@ -866,13 +867,17 @@ function selectAnswer(choiceText, btnEl){
       explanationBox.textContent = '💡 ' + item.explanation;
       explanationBox.classList.remove('hidden');
     }
-    waitTime = 3400;
   }
-  setTimeout(()=>{
-    quizIndex++;
-    if(quizIndex < quizItems.length) renderQuizQuestion();
-    else finishQuiz();
-  }, waitTime);
+  const isLast = (quizIndex === quizItems.length - 1);
+  const nextBtn = document.getElementById('quiz-next-btn');
+  nextBtn.textContent = isLast ? 'Bekijk je resultaat →' : 'Volgende vraag →';
+  nextBtn.classList.remove('hidden');
+}
+
+function goNextQuestion(){
+  quizIndex++;
+  if(quizIndex < quizItems.length) renderQuizQuestion();
+  else finishQuiz();
 }
 
 async function finishQuiz(){
