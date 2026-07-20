@@ -261,6 +261,12 @@
       <div id="passage-box" class="passage-box hidden"></div>
       <div class="question-text" id="quiz-question"></div>
       <div class="choices" id="quiz-choices"></div>
+      <div class="hidden" id="dictee-box" style="margin-top:8px;">
+        <button class="btn-ghost" style="margin-bottom:10px;" onclick="replayDictee()">🔊 Luister opnieuw</button>
+        <input type="text" id="dictee-input" placeholder="Typ hier het woord..." autocomplete="off" spellcheck="false"
+               onkeydown="if(event.key==='Enter') submitDicteeAnswer()">
+        <button class="btn-primary" id="dictee-submit-btn" style="width:100%; margin-top:10px;" onclick="submitDicteeAnswer()">Controleer</button>
+      </div>
       <div class="feedback" id="quiz-feedback"></div>
       <div class="explanation-box hidden" id="quiz-explanation"></div>
       <button class="btn-primary hidden" id="quiz-next-btn" style="width:100%; margin-top:16px;" onclick="goNextQuestion()">Volgende vraag →</button>
@@ -398,10 +404,47 @@ function buildSpellingItem(tier){
     wrongA = cat.mutate(word);
     if(wrongA === word) wrongA = genericCorrupt(word, [word]);
   }
+  if(Math.random() < 0.5){
+    return {
+      type:'spelling-dictee',
+      question:'Luister goed en typ het woord dat je hoort.',
+      word,
+      correctText: word,
+      explanation: cat.explain(word)
+    };
+  }
   const wrongB = genericCorrupt(word, [word, wrongA]);
   const options = shuffle([word, wrongA, wrongB]);
   const question = SPELLING_QUESTION_TEMPLATES[randInt(0, SPELLING_QUESTION_TEMPLATES.length-1)];
   return { type:'spelling', question, choices: options, correctText: word, explanation: cat.explain(word) };
+}
+
+/* ============ TEKST-NAAR-SPRAAK (voor het dictee-onderdeel) ============ */
+let dutchVoice = null;
+function pickDutchVoice(){
+  if(!window.speechSynthesis) return null;
+  const voices = window.speechSynthesis.getVoices();
+  return voices.find(v => v.lang && v.lang.toLowerCase().startsWith('nl')) || null;
+}
+if(window.speechSynthesis){
+  window.speechSynthesis.onvoiceschanged = () => { dutchVoice = pickDutchVoice(); };
+  dutchVoice = pickDutchVoice();
+}
+function speak(text){
+  if(!window.speechSynthesis){
+    document.getElementById('quiz-feedback').textContent = 'Geluid wordt helaas niet ondersteund in deze browser.';
+    return;
+  }
+  window.speechSynthesis.cancel();
+  const utter = new SpeechSynthesisUtterance(text);
+  utter.lang = 'nl-NL';
+  if(dutchVoice) utter.voice = dutchVoice;
+  utter.rate = 0.85;
+  window.speechSynthesis.speak(utter);
+}
+function replayDictee(){
+  const item = quizItems[quizIndex];
+  if(item && item.type === 'spelling-dictee') speak(item.word);
 }
 
 const READING_BANK = {
@@ -1105,14 +1148,31 @@ function renderQuizQuestion(){
 
   document.getElementById('quiz-question').textContent = item.question;
   const choicesEl = document.getElementById('quiz-choices');
-  choicesEl.innerHTML = '';
-  item.choices.forEach(choiceText=>{
-    const b = document.createElement('button');
-    b.className = 'choice-btn';
-    b.textContent = choiceText;
-    b.onclick = ()=> selectAnswer(choiceText, b);
-    choicesEl.appendChild(b);
-  });
+  const dicteeBox = document.getElementById('dictee-box');
+
+  if(item.type === 'spelling-dictee'){
+    choicesEl.classList.add('hidden');
+    choicesEl.innerHTML = '';
+    dicteeBox.classList.remove('hidden');
+    const input = document.getElementById('dictee-input');
+    input.value = '';
+    input.disabled = false;
+    input.style.borderColor = '';
+    document.getElementById('dictee-submit-btn').disabled = false;
+    speak(item.word);
+    setTimeout(()=> input.focus(), 300);
+  } else {
+    dicteeBox.classList.add('hidden');
+    choicesEl.classList.remove('hidden');
+    choicesEl.innerHTML = '';
+    item.choices.forEach(choiceText=>{
+      const b = document.createElement('button');
+      b.className = 'choice-btn';
+      b.textContent = choiceText;
+      b.onclick = ()=> selectAnswer(choiceText, b);
+      choicesEl.appendChild(b);
+    });
+  }
 }
 
 function selectAnswer(choiceText, btnEl){
@@ -1126,6 +1186,24 @@ function selectAnswer(choiceText, btnEl){
     else if(b === btnEl) b.classList.add('wrong');
     else b.classList.add('dim');
   });
+  resolveAnswer(item, isCorrect);
+}
+
+function submitDicteeAnswer(){
+  if(!answering) return;
+  const input = document.getElementById('dictee-input');
+  const typed = input.value.trim();
+  if(!typed) return;
+  answering = false;
+  const item = quizItems[quizIndex];
+  const isCorrect = typed.toLowerCase() === item.correctText.toLowerCase();
+  input.disabled = true;
+  document.getElementById('dictee-submit-btn').disabled = true;
+  input.style.borderColor = isCorrect ? 'var(--success)' : '#e0563c';
+  resolveAnswer(item, isCorrect);
+}
+
+function resolveAnswer(item, isCorrect){
   const feedback = document.getElementById('quiz-feedback');
   const explanationBox = document.getElementById('quiz-explanation');
   if(isCorrect){
